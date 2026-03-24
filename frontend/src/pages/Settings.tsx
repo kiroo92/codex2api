@@ -1,6 +1,6 @@
 import type { ChangeEvent, KeyboardEvent } from 'react'
 import { useCallback, useState } from 'react'
-import { api } from '../api'
+import { api, setAdminKey } from '../api'
 import PageHeader from '../components/PageHeader'
 import StateShell from '../components/StateShell'
 import ToastNotice from '../components/ToastNotice'
@@ -46,6 +46,7 @@ export default function Settings() {
     redis_pool_size: 30,
     auto_clean_unauthorized: false,
     auto_clean_rate_limited: false,
+    admin_secret: '',
   })
   const [savingSettings, setSavingSettings] = useState(false)
   const [modelList, setModelList] = useState<string[]>([])
@@ -117,6 +118,7 @@ export default function Settings() {
     try {
       const updated = await api.updateSettings(settingsForm)
       setSettingsForm(updated)
+      setAdminKey(updated.admin_secret ?? '')
       showToast('设置已保存，实时生效')
     } catch (error) {
       showToast(`保存失败: ${getErrorMessage(error)}`, 'error')
@@ -360,6 +362,21 @@ export default function Settings() {
                 />
                 <p className="text-xs text-muted-foreground mt-1">
                   开启后，后台每 30 秒巡检一次，发现运行时为 rate_limited 的账号会自动从号池中清理。
+                </p>
+              </div>
+            </div>
+            <h3 className="text-base font-semibold text-foreground mb-4 mt-6">安全</h3>
+            <div className="grid grid-cols-[repeat(auto-fit,minmax(280px,1fr))] gap-4 mb-4">
+              <div>
+                <label className="block mb-2 text-sm font-semibold text-muted-foreground">管理密钥</label>
+                <Input
+                  type="text"
+                  placeholder="留空则不启用管理接口鉴权"
+                  value={settingsForm.admin_secret}
+                  onChange={(e: ChangeEvent<HTMLInputElement>) => setSettingsForm(f => ({ ...f, admin_secret: e.target.value }))}
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  设置后，所有 /api/admin/* 管理接口需要携带 X-Admin-Key 请求头。留空则关闭鉴权。
                 </p>
               </div>
             </div>

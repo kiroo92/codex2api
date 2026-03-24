@@ -29,10 +29,10 @@ export default function Layout({ children }: PropsWithChildren) {
             {/* Brand */}
             <div className="pb-6 border-b border-border">
               <div className="flex items-center gap-3.5">
-                <img src={logoImg} alt="Codex2API" className="w-[52px] h-[52px] rounded-2xl object-cover shadow-[0_4px_16px_hsl(258_60%_63%/0.2)] shrink-0" />
+                <img src={logoImg} alt="CodexProxy" className="w-[52px] h-[52px] rounded-2xl object-cover shadow-[0_4px_16px_hsl(258_60%_63%/0.2)] shrink-0" />
                 <div className="flex flex-col gap-1">
                   <h1 className="text-[26px] leading-tight font-bold bg-gradient-to-br from-[hsl(258,60%,63%)] to-[hsl(210,80%,60%)] bg-clip-text text-transparent">
-                    Codex2API
+                    CodexProxy
                   </h1>
                   <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-primary/10 text-primary text-[11px] font-bold w-fit">
                     v2.0
@@ -83,8 +83,8 @@ export default function Layout({ children }: PropsWithChildren) {
           {/* Mobile topbar */}
           <header className="hidden max-lg:flex items-center justify-between gap-4 mb-4 p-3.5 border border-border rounded-[22px] bg-white/70">
             <div className="flex items-center gap-3">
-              <img src={logoImg} alt="Codex2API" className="w-8 h-8 rounded-[10px] object-cover" />
-              <strong className="text-lg">Codex2API</strong>
+              <img src={logoImg} alt="CodexProxy" className="w-8 h-8 rounded-[10px] object-cover" />
+              <strong className="text-lg">CodexProxy</strong>
             </div>
             <span className="inline-flex items-center justify-center min-h-[28px] px-2.5 rounded-full text-[12px] font-bold bg-[hsl(var(--success-bg))] text-[hsl(var(--success))]">
               在线

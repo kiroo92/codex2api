@@ -16,6 +16,18 @@ import type {
 
 const BASE = '/api/admin'
 
+export function getAdminKey(): string {
+  return localStorage.getItem('admin_key') ?? ''
+}
+
+export function setAdminKey(key: string) {
+  if (key) {
+    localStorage.setItem('admin_key', key)
+  } else {
+    localStorage.removeItem('admin_key')
+  }
+}
+
 function extractAdminErrorMessage(body: string, status: number): string {
   if (!body.trim()) {
     return `HTTP ${status}`
@@ -37,6 +49,11 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   const headers = new Headers(options.headers)
   if (options.body !== undefined && options.body !== null && !headers.has('Content-Type')) {
     headers.set('Content-Type', 'application/json')
+  }
+
+  const adminKey = getAdminKey()
+  if (adminKey) {
+    headers.set('X-Admin-Key', adminKey)
   }
 
   const res = await fetch(BASE + path, {

@@ -53,6 +53,7 @@ func (h *Handler) SetPoolSizes(pgMaxConns, redisPoolSize int) {
 // RegisterRoutes 注册管理 API 路由
 func (h *Handler) RegisterRoutes(r *gin.Engine) {
 	api := r.Group("/api/admin")
+	api.Use(h.adminAuthMiddleware())
 	api.GET("/stats", h.GetStats)
 	api.GET("/accounts", h.ListAccounts)
 	api.POST("/accounts", h.AddAccount)
@@ -74,6 +75,39 @@ func (h *Handler) RegisterRoutes(r *gin.Engine) {
 	api.GET("/settings", h.GetSettings)
 	api.PUT("/settings", h.UpdateSettings)
 	api.GET("/models", h.ListModels)
+}
+
+// adminAuthMiddleware 管理接口鉴权中间件
+func (h *Handler) adminAuthMiddleware() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		ctx, cancel := context.WithTimeout(c.Request.Context(), 3*time.Second)
+		defer cancel()
+
+		settings, err := h.db.GetSystemSettings(ctx)
+		if err != nil || settings == nil || settings.AdminSecret == "" {
+			// 未配置管理密钥，跳过鉴权
+			c.Next()
+			return
+		}
+
+		adminKey := c.GetHeader("X-Admin-Key")
+		if adminKey == "" {
+			// 兼容 Authorization: Bearer 方式
+			authHeader := c.GetHeader("Authorization")
+			if strings.HasPrefix(authHeader, "Bearer ") {
+				adminKey = strings.TrimPrefix(authHeader, "Bearer ")
+			}
+		}
+
+		if adminKey != settings.AdminSecret {
+			c.JSON(http.StatusUnauthorized, gin.H{
+				"error": "管理密钥无效或缺失",
+			})
+			c.Abort()
+			return
+		}
+		c.Next()
+	}
 }
 
 // ==================== Stats ====================
@@ -648,6 +682,7 @@ type settingsResponse struct {
 	RedisPoolSize         int    `json:"redis_pool_size"`
 	AutoCleanUnauthorized bool   `json:"auto_clean_unauthorized"`
 	AutoCleanRateLimited  bool   `json:"auto_clean_rate_limited"`
+	AdminSecret           string `json:"admin_secret"`
 }
 
 type updateSettingsReq struct {
@@ -660,10 +695,18 @@ type updateSettingsReq struct {
 	RedisPoolSize         *int    `json:"redis_pool_size"`
 	AutoCleanUnauthorized *bool   `json:"auto_clean_unauthorized"`
 	AutoCleanRateLimited  *bool   `json:"auto_clean_rate_limited"`
+	AdminSecret           *string `json:"admin_secret"`
 }
 
 // GetSettings 获取当前系统设置
 func (h *Handler) GetSettings(c *gin.Context) {
+	ctx, cancel := context.WithTimeout(c.Request.Context(), 3*time.Second)
+	defer cancel()
+	dbSettings, _ := h.db.GetSystemSettings(ctx)
+	adminSecret := ""
+	if dbSettings != nil {
+		adminSecret = dbSettings.AdminSecret
+	}
 	c.JSON(http.StatusOK, settingsResponse{
 		MaxConcurrency:        h.store.GetMaxConcurrency(),
 		GlobalRPM:             h.rateLimiter.GetRPM(),
@@ -674,6 +717,7 @@ func (h *Handler) GetSettings(c *gin.Context) {
 		RedisPoolSize:         h.redisPoolSize,
 		AutoCleanUnauthorized: h.store.GetAutoCleanUnauthorized(),
 		AutoCleanRateLimited:  h.store.GetAutoCleanRateLimited(),
+		AdminSecret:           adminSecret,
 	})
 }
 
@@ -764,6 +808,16 @@ func (h *Handler) UpdateSettings(c *gin.Context) {
 		log.Printf("设置已更新: auto_clean_rate_limited = %t", *req.AutoCleanRateLimited)
 	}
 
+	// 读取当前 admin_secret（如有更新则使用新值）
+	currentAdminSecret := ""
+	if dbSettings, err := h.db.GetSystemSettings(c.Request.Context()); err == nil && dbSettings != nil {
+		currentAdminSecret = dbSettings.AdminSecret
+	}
+	if req.AdminSecret != nil {
+		currentAdminSecret = *req.AdminSecret
+		log.Printf("设置已更新: admin_secret (长度=%d)", len(currentAdminSecret))
+	}
+
 	// 持久化保存到数据库
 	err := h.db.UpdateSystemSettings(c.Request.Context(), &database.SystemSettings{
 		MaxConcurrency:        h.store.GetMaxConcurrency(),
@@ -775,6 +829,7 @@ func (h *Handler) UpdateSettings(c *gin.Context) {
 		RedisPoolSize:         h.redisPoolSize,
 		AutoCleanUnauthorized: h.store.GetAutoCleanUnauthorized(),
 		AutoCleanRateLimited:  h.store.GetAutoCleanRateLimited(),
+		AdminSecret:           currentAdminSecret,
 	})
 	if err != nil {
 		log.Printf("无法持久化保存设置: %v", err)
@@ -794,6 +849,7 @@ func (h *Handler) UpdateSettings(c *gin.Context) {
 		RedisPoolSize:         h.redisPoolSize,
 		AutoCleanUnauthorized: h.store.GetAutoCleanUnauthorized(),
 		AutoCleanRateLimited:  h.store.GetAutoCleanRateLimited(),
+		AdminSecret:           currentAdminSecret,
 	})
 }
 

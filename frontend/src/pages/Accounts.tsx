@@ -1,6 +1,6 @@
 import type { ChangeEvent } from 'react'
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { api } from '../api'
+import { api, getAdminKey } from '../api'
 import Modal from '../components/Modal'
 import PageHeader from '../components/PageHeader'
 import Pagination from '../components/Pagination'
@@ -152,7 +152,7 @@ export default function Accounts() {
     try {
       const formData = new FormData()
       formData.append('file', file)
-      const res = await fetch('/api/admin/accounts/import', { method: 'POST', body: formData })
+      const res = await fetch('/api/admin/accounts/import', { method: 'POST', body: formData, headers: getAdminKey() ? { 'X-Admin-Key': getAdminKey() } : {} })
       const data = await res.json()
       if (!res.ok) {
         showToast(data.error || '导入失败', 'error')

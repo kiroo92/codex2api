@@ -228,6 +228,7 @@ func (db *DB) migrate(ctx context.Context) error {
 	ALTER TABLE system_settings ADD COLUMN IF NOT EXISTS redis_pool_size INT DEFAULT 30;
 	ALTER TABLE system_settings ADD COLUMN IF NOT EXISTS auto_clean_unauthorized BOOLEAN DEFAULT FALSE;
 	ALTER TABLE system_settings ADD COLUMN IF NOT EXISTS auto_clean_rate_limited BOOLEAN DEFAULT FALSE;
+	ALTER TABLE system_settings ADD COLUMN IF NOT EXISTS admin_secret VARCHAR(255) DEFAULT '';
 	`
 	_, err := db.conn.ExecContext(ctx, query)
 	return err
@@ -283,6 +284,7 @@ type SystemSettings struct {
 	RedisPoolSize         int
 	AutoCleanUnauthorized bool
 	AutoCleanRateLimited  bool
+	AdminSecret           string
 }
 
 // GetSystemSettings 加载全局设置
@@ -290,11 +292,11 @@ func (db *DB) GetSystemSettings(ctx context.Context) (*SystemSettings, error) {
 	s := &SystemSettings{}
 	err := db.conn.QueryRowContext(ctx, `
 		SELECT max_concurrency, global_rpm, test_model, test_concurrency, proxy_url, pg_max_conns, redis_pool_size,
-		       auto_clean_unauthorized, auto_clean_rate_limited
+		       auto_clean_unauthorized, auto_clean_rate_limited, COALESCE(admin_secret, '')
 		FROM system_settings WHERE id = 1
 	`).Scan(
 		&s.MaxConcurrency, &s.GlobalRPM, &s.TestModel, &s.TestConcurrency, &s.ProxyURL, &s.PgMaxConns, &s.RedisPoolSize,
-		&s.AutoCleanUnauthorized, &s.AutoCleanRateLimited,
+		&s.AutoCleanUnauthorized, &s.AutoCleanRateLimited, &s.AdminSecret,
 	)
 	if err == sql.ErrNoRows {
 		return nil, nil
@@ -307,9 +309,9 @@ func (db *DB) UpdateSystemSettings(ctx context.Context, s *SystemSettings) error
 	_, err := db.conn.ExecContext(ctx, `
 		INSERT INTO system_settings (
 			id, max_concurrency, global_rpm, test_model, test_concurrency, proxy_url, pg_max_conns, redis_pool_size,
-			auto_clean_unauthorized, auto_clean_rate_limited
+			auto_clean_unauthorized, auto_clean_rate_limited, admin_secret
 		)
-		VALUES (1, $1, $2, $3, $4, $5, $6, $7, $8, $9)
+		VALUES (1, $1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
 		ON CONFLICT (id) DO UPDATE SET
 			max_concurrency         = EXCLUDED.max_concurrency,
 			global_rpm              = EXCLUDED.global_rpm,
@@ -319,8 +321,9 @@ func (db *DB) UpdateSystemSettings(ctx context.Context, s *SystemSettings) error
 			pg_max_conns            = EXCLUDED.pg_max_conns,
 			redis_pool_size         = EXCLUDED.redis_pool_size,
 			auto_clean_unauthorized = EXCLUDED.auto_clean_unauthorized,
-			auto_clean_rate_limited = EXCLUDED.auto_clean_rate_limited
-	`, s.MaxConcurrency, s.GlobalRPM, s.TestModel, s.TestConcurrency, s.ProxyURL, s.PgMaxConns, s.RedisPoolSize, s.AutoCleanUnauthorized, s.AutoCleanRateLimited)
+			auto_clean_rate_limited = EXCLUDED.auto_clean_rate_limited,
+			admin_secret            = EXCLUDED.admin_secret
+	`, s.MaxConcurrency, s.GlobalRPM, s.TestModel, s.TestConcurrency, s.ProxyURL, s.PgMaxConns, s.RedisPoolSize, s.AutoCleanUnauthorized, s.AutoCleanRateLimited, s.AdminSecret)
 	return err
 }
 

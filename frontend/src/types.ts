@@ -136,6 +136,7 @@ export interface SystemSettings {
   redis_pool_size: number
   auto_clean_unauthorized: boolean
   auto_clean_rate_limited: boolean
+  admin_secret: string
 }
 
 export interface UsageStats {
