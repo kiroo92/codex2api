@@ -447,6 +447,26 @@ interface TestEvent {
   error?: string
 }
 
+function formatTestErrorMessage(message: string) {
+  const normalized = message.trim()
+  const jsonStart = normalized.indexOf('{')
+
+  if (jsonStart === -1) {
+    return normalized
+  }
+
+  const prefix = normalized.slice(0, jsonStart).trim().replace(/[：:]\s*$/, '')
+  const jsonText = normalized.slice(jsonStart)
+
+  try {
+    const parsed = JSON.parse(jsonText)
+    const prettyJson = JSON.stringify(parsed, null, 2)
+    return prefix ? `${prefix}\n${prettyJson}` : prettyJson
+  } catch {
+    return normalized
+  }
+}
+
 function TestConnectionModal({ account, onClose }: { account: AccountRow; onClose: () => void }) {
   const [output, setOutput] = useState<string[]>([])
   const [status, setStatus] = useState<'connecting' | 'streaming' | 'success' | 'error'>('connecting')
@@ -554,6 +574,7 @@ function TestConnectionModal({ account, onClose }: { account: AccountRow; onClos
     success: 'text-emerald-500',
     error: 'text-red-500',
   }[status]
+  const formattedErrorMsg = errorMsg ? formatTestErrorMessage(errorMsg) : ''
 
   return (
     <Modal
@@ -574,17 +595,22 @@ function TestConnectionModal({ account, onClose }: { account: AccountRow; onClos
           关闭
         </Button>
       }
+      contentClassName="sm:max-w-[680px]"
     >
       <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <span className={`text-sm font-semibold flex items-center gap-1.5 ${statusColor}`}>
+        <div className="flex flex-wrap items-start justify-between gap-2">
+          <span className={`flex items-center gap-1.5 text-sm font-semibold ${statusColor}`}>
             {statusLabel}
           </span>
-          {model && <span className="text-xs font-mono px-2 py-0.5 rounded-md bg-muted text-muted-foreground">{model}</span>}
+          {model && (
+            <span className="max-w-full rounded-md bg-muted px-2 py-0.5 font-mono text-xs break-all text-muted-foreground">
+              {model}
+            </span>
+          )}
         </div>
 
         {(output.length > 0 || status === 'connecting' || status === 'streaming') && (
-          <div className="min-h-[80px] max-h-[240px] overflow-auto rounded-xl border border-border bg-muted/30 p-3 text-sm leading-relaxed font-mono whitespace-pre-wrap">
+          <div className="min-h-[80px] max-h-[240px] overflow-auto rounded-xl border border-border bg-muted/30 p-3 text-sm leading-relaxed font-mono whitespace-pre-wrap break-all">
             {output.length === 0 && status === 'connecting' && (
               <span className="text-muted-foreground animate-pulse">正在发送测试请求...</span>
             )}
@@ -594,8 +620,11 @@ function TestConnectionModal({ account, onClose }: { account: AccountRow; onClos
         )}
 
         {errorMsg && (
-          <div className="rounded-xl border border-red-200 bg-red-50 dark:border-red-900/50 dark:bg-red-950/30 p-3.5 text-sm text-red-600 dark:text-red-400 break-words leading-relaxed">
-            {errorMsg}
+          <div className="max-h-[40vh] overflow-auto rounded-xl border border-red-200 bg-red-50 p-3.5 text-red-600 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-400">
+            <div className="mb-2 text-sm font-semibold">失败详情</div>
+            <pre className="font-mono text-[13px] leading-6 whitespace-pre-wrap break-all">
+              {formattedErrorMsg}
+            </pre>
           </div>
         )}
       </div>
