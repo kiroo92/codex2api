@@ -457,10 +457,21 @@ function getTooltipLabel(payload: readonly { payload?: Record<string, unknown> }
   return typeof rawValue === 'string' && rawValue ? rawValue : ''
 }
 
+/** 将 Date 格式化为带本地时区偏移的 RFC3339 字符串（避免 UTC/本地时间不一致） */
+function toLocalRFC3339(date: Date): string {
+  const pad = (n: number) => String(n).padStart(2, '0')
+  const offset = date.getTimezoneOffset()
+  const sign = offset <= 0 ? '+' : '-'
+  const absOffset = Math.abs(offset)
+  const tzH = pad(Math.floor(absOffset / 60))
+  const tzM = pad(absOffset % 60)
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}${sign}${tzH}:${tzM}`
+}
+
 /** 根据 TimeRangeKey 计算时间范围的起始 ISO 字符串 */
 export function getTimeRangeISO(range: TimeRangeKey): { start: string; end: string } {
   const now = new Date()
-  const end = now.toISOString()
+  const end = toLocalRFC3339(now)
   let offsetMs: number
   switch (range) {
     case '1h':
@@ -481,6 +492,7 @@ export function getTimeRangeISO(range: TimeRangeKey): { start: string; end: stri
     default:
       offsetMs = 60 * 60 * 1000
   }
-  const start = new Date(now.getTime() - offsetMs).toISOString()
+  const start = toLocalRFC3339(new Date(now.getTime() - offsetMs))
   return { start, end }
 }
+

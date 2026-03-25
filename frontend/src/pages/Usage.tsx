@@ -1,5 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { api } from '../api'
+import { getTimeRangeISO } from '../components/DashboardUsageCharts'
+import type { TimeRangeKey } from '../components/DashboardUsageCharts'
 import PageHeader from '../components/PageHeader'
 import Pagination from '../components/Pagination'
 import StateShell from '../components/StateShell'
@@ -68,20 +71,25 @@ function getStatusBadgeClassName(statusCode: number): string {
   return 'border-transparent bg-slate-500/14 text-slate-600 dark:bg-slate-500/20 dark:text-slate-300'
 }
 
+const TIME_RANGE_OPTIONS: TimeRangeKey[] = ['1h', '6h', '24h', '7d', '30d']
+
 export default function Usage() {
+  const { t } = useTranslation()
   const { toast, showToast } = useToast()
   const { confirm, confirmDialog } = useConfirmDialog()
   const [page, setPage] = useState(1)
   const [clearing, setClearing] = useState(false)
+  const [timeRange, setTimeRange] = useState<TimeRangeKey>('24h')
   const PAGE_SIZE = 20
 
   const loadUsageData = useCallback(async () => {
-    const [stats, logsResponse] = await Promise.all([api.getUsageStats(), api.getUsageLogs({ limit: 5000 })])
+    const { start, end } = getTimeRangeISO(timeRange)
+    const [stats, logsResponse] = await Promise.all([api.getUsageStats(), api.getUsageLogs({ start, end })])
     return {
       stats,
       logs: logsResponse.logs ?? [],
     }
-  }, [])
+  }, [timeRange])
 
   const { data, loading, error, reload, reloadSilently } = useDataLoader<{
     stats: UsageStats | null
@@ -224,9 +232,27 @@ export default function Usage() {
         <Card>
           <CardContent className="p-6">
             <div className="flex items-center justify-between gap-4 mb-4 flex-wrap">
-              <h3 className="text-base font-semibold text-foreground">请求记录</h3>
               <div className="flex items-center gap-3">
-                <span className="text-xs text-muted-foreground">最近 {logs.length} 条</span>
+                <h3 className="text-base font-semibold text-foreground">请求记录</h3>
+                <div className="inline-flex rounded-lg border border-border bg-muted/50 p-0.5">
+                  {TIME_RANGE_OPTIONS.map((key) => (
+                    <button
+                      key={key}
+                      type="button"
+                      onClick={() => { setTimeRange(key); setPage(1) }}
+                      className={`px-2.5 py-1 text-xs font-medium rounded-md transition-all duration-200 ${
+                        timeRange === key
+                          ? 'bg-background text-foreground shadow-sm border border-border'
+                          : 'text-muted-foreground hover:text-foreground'
+                      }`}
+                    >
+                      {t(`dashboard.timeRange${key.toUpperCase()}`)}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div className="flex items-center gap-3">
+                <span className="text-xs text-muted-foreground">{logs.length} 条记录</span>
                 <Button
                   variant="destructive"
                   size="sm"

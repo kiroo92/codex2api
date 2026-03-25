@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { api } from '../api'
 import DashboardUsageCharts, { getTimeRangeISO } from '../components/DashboardUsageCharts'
@@ -17,31 +17,48 @@ const DASHBOARD_REFRESH_INTERVAL_MS = 15_000
 export default function Dashboard() {
   const { t } = useTranslation()
   const [timeRange, setTimeRange] = useState<TimeRangeKey>('1h')
+  const [logs, setLogs] = useState<UsageLog[]>([])
+  const [logsRefreshedAt, setLogsRefreshedAt] = useState<number | null>(null)
+  const logsAbort = useRef<AbortController | null>(null)
 
-  const loadDashboardData = useCallback(async () => {
-    const { start, end } = getTimeRangeISO(timeRange)
-    const [stats, usageStats, usageLogsResponse] = await Promise.all([
+  // 仅加载轻量级统计数据（秒级响应）
+  const loadDashboardStats = useCallback(async () => {
+    const [stats, usageStats] = await Promise.all([
       api.getStats(),
       api.getUsageStats(),
-      api.getUsageLogs({ start, end }).catch(() => ({ logs: [] as UsageLog[] })),
     ])
-    return {
-      stats,
-      usageStats,
-      logs: usageLogsResponse.logs ?? [],
-      refreshedAt: Date.now(),
-    }
-  }, [timeRange])
+    return { stats, usageStats }
+  }, [])
 
   const { data, loading, error, reload, reloadSilently } = useDataLoader<{
     stats: StatsResponse | null
     usageStats: UsageStats | null
-    logs: UsageLog[]
-    refreshedAt: number | null
   }>({
-    initialData: { stats: null, usageStats: null, logs: [], refreshedAt: null },
-    load: loadDashboardData,
+    initialData: { stats: null, usageStats: null },
+    load: loadDashboardStats,
   })
+
+  // 日志独立异步加载（不阻塞统计卡片渲染）
+  const loadLogs = useCallback(async () => {
+    logsAbort.current?.abort()
+    const controller = new AbortController()
+    logsAbort.current = controller
+    try {
+      const { start, end } = getTimeRangeISO(timeRange)
+      const res = await api.getUsageLogs({ start, end })
+      if (!controller.signal.aborted) {
+        setLogs(res.logs ?? [])
+        setLogsRefreshedAt(Date.now())
+      }
+    } catch {
+      // 静默容错，图表区域保持上次数据
+    }
+  }, [timeRange])
+
+  // 首次加载 + timeRange 变更时重新拉取日志
+  useEffect(() => {
+    void loadLogs()
+  }, [loadLogs])
 
   // 仅在 1h（实时）模式下启用自动刷新
   useEffect(() => {
@@ -50,12 +67,13 @@ export default function Dashboard() {
     const timer = window.setInterval(() => {
       if (document.visibilityState !== 'visible') return
       void reloadSilently()
+      void loadLogs()
     }, DASHBOARD_REFRESH_INTERVAL_MS)
 
     return () => window.clearInterval(timer)
-  }, [reloadSilently, timeRange])
+  }, [reloadSilently, timeRange, loadLogs])
 
-  const { stats, usageStats, logs, refreshedAt } = data
+  const { stats, usageStats } = data
   const total = stats?.total ?? 0
   const available = stats?.available ?? 0
   const errorCount = stats?.error ?? 0
@@ -73,7 +91,7 @@ export default function Dashboard() {
       variant="page"
       loading={loading}
       error={error}
-      onRetry={() => void reload()}
+      onRetry={() => { void reload(); void loadLogs() }}
       loadingTitle={t('dashboard.loadingTitle')}
       loadingDescription={t('dashboard.loadingDesc')}
       errorTitle={t('dashboard.errorTitle')}
@@ -82,7 +100,7 @@ export default function Dashboard() {
         <PageHeader
           title={t('dashboard.title')}
           description={t('dashboard.description')}
-          onRefresh={() => void reload()}
+          onRefresh={() => { void reload(); void loadLogs() }}
         />
 
         {/* Account status */}
@@ -123,7 +141,7 @@ export default function Dashboard() {
             </Card>
             <DashboardUsageCharts
               logs={logs}
-              refreshedAt={refreshedAt}
+              refreshedAt={logsRefreshedAt}
               refreshIntervalMs={DASHBOARD_REFRESH_INTERVAL_MS}
               timeRange={timeRange}
               onTimeRangeChange={setTimeRange}
