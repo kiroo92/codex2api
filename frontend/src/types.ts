@@ -57,6 +57,22 @@ export interface AddAccountRequest {
   proxy_url: string
 }
 
+export interface AccountModelStat {
+  model: string
+  requests: number
+  tokens: number
+}
+
+export interface AccountUsageDetail {
+  total_requests: number
+  total_tokens: number
+  input_tokens: number
+  output_tokens: number
+  reasoning_tokens: number
+  cached_tokens: number
+  models: AccountModelStat[]
+}
+
 export interface MessageResponse {
   message: string
 }

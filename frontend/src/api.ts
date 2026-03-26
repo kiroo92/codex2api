@@ -1,4 +1,5 @@
 import type {
+  AccountUsageDetail,
   AddAccountRequest,
   AdminErrorResponse,
   APIKeysResponse,
@@ -82,6 +83,8 @@ export const api = {
     request<MessageResponse>(`/accounts/${id}`, { method: 'DELETE' }),
   refreshAccount: (id: number) =>
     request<MessageResponse>(`/accounts/${id}/refresh`, { method: 'POST' }),
+  getAccountUsage: (id: number) =>
+    request<AccountUsageDetail>(`/accounts/${id}/usage`),
   getHealth: () => request<HealthResponse>('/health'),
   getOpsOverview: () => request<OpsOverviewResponse>('/ops/overview'),
   getUsageStats: () => request<UsageStats>('/usage/stats'),

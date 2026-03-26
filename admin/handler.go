@@ -74,6 +74,7 @@ func (h *Handler) RegisterRoutes(r *gin.Engine) {
 	api.DELETE("/accounts/:id", h.DeleteAccount)
 	api.POST("/accounts/:id/refresh", h.RefreshAccount)
 	api.GET("/accounts/:id/test", h.TestConnection)
+	api.GET("/accounts/:id/usage", h.GetAccountUsage)
 	api.POST("/accounts/batch-test", h.BatchTest)
 	api.POST("/accounts/clean-banned", h.CleanBanned)
 	api.POST("/accounts/clean-rate-limited", h.CleanRateLimited)
@@ -618,6 +619,25 @@ func (h *Handler) importAccountsCommon(c *gin.Context, tokens []importToken, pro
 		"failed":    failCount,
 		"total":     len(unique),
 	})
+}
+
+// GetAccountUsage 查询单个账号的用量统计
+func (h *Handler) GetAccountUsage(c *gin.Context) {
+	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil {
+		writeError(c, http.StatusBadRequest, "无效的账号 ID")
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(c.Request.Context(), 10*time.Second)
+	defer cancel()
+
+	detail, err := h.db.GetAccountUsageStats(ctx, id)
+	if err != nil {
+		writeInternalError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, detail)
 }
 
 // DeleteAccount 删除账号

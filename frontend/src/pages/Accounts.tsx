@@ -24,8 +24,9 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { Plus, RefreshCw, Trash2, Zap, FlaskConical, Ban, Timer, Upload, KeyRound, ExternalLink, FileText, FileJson } from 'lucide-react'
+import { Plus, RefreshCw, Trash2, Zap, FlaskConical, Ban, Timer, Upload, KeyRound, ExternalLink, FileText, FileJson, BarChart3 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
+import AccountUsageModal from '../components/AccountUsageModal'
 
 export default function Accounts() {
   const { t } = useTranslation()
@@ -48,6 +49,7 @@ export default function Accounts() {
   const [cleaningBanned, setCleaningBanned] = useState(false)
   const [cleaningRateLimited, setCleaningRateLimited] = useState(false)
   const [testingAccount, setTestingAccount] = useState<AccountRow | null>(null)
+  const [usageAccount, setUsageAccount] = useState<AccountRow | null>(null)
   const [importing, setImporting] = useState(false)
   const [showImportPicker, setShowImportPicker] = useState(false)
   const [addMethod, setAddMethod] = useState<'rt' | 'oauth'>('rt')
@@ -636,29 +638,43 @@ export default function Accounts() {
                         <TableCell className="text-[13px] text-muted-foreground whitespace-nowrap">{formatBeijingTime(account.created_at)}</TableCell>
                         <TableCell className="text-[14px] text-muted-foreground">{formatRelativeTime(account.updated_at)}</TableCell>
                         <TableCell className="text-right">
-                          <div className="flex items-center gap-1.5 justify-end">
+                          <div className="flex items-center gap-1 justify-end">
                             <Button
                               variant="outline"
-                              size="sm"
-                              onClick={() => setTestingAccount(account)}
-                              title={t('accounts.testConnection')}
+                              size="icon"
+                              className="size-7"
+                              onClick={() => setUsageAccount(account)}
+                              title={t('accounts.usageDetail')}
                             >
-                              <Zap className="size-3" />
-                              {t('accounts.test')}
+                              <BarChart3 className="size-3.5" />
                             </Button>
                             <Button
                               variant="outline"
-                              size="sm"
+                              size="icon"
+                              className="size-7"
+                              onClick={() => setTestingAccount(account)}
+                              title={t('accounts.testConnection')}
+                            >
+                              <Zap className="size-3.5" />
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="icon"
+                              className="size-7"
                               disabled={refreshingIds.has(account.id)}
                               onClick={() => void handleRefresh(account)}
                               title={t('accounts.refreshAccessToken')}
                             >
-                              <RefreshCw className={`size-3 ${refreshingIds.has(account.id) ? 'animate-spin' : ''}`} />
-                              {refreshingIds.has(account.id) ? t('accounts.refreshing') : t('accounts.refreshToken')}
+                              <RefreshCw className={`size-3.5 ${refreshingIds.has(account.id) ? 'animate-spin' : ''}`} />
                             </Button>
-                            <Button variant="destructive" size="sm" onClick={() => void handleDelete(account)}>
-                              <Trash2 className="size-3" />
-                              {t('accounts.deleteAccount')}
+                            <Button
+                              variant="destructive"
+                              size="icon"
+                              className="size-7"
+                              onClick={() => void handleDelete(account)}
+                              title={t('accounts.deleteAccount')}
+                            >
+                              <Trash2 className="size-3.5" />
                             </Button>
                           </div>
                         </TableCell>
@@ -849,26 +865,30 @@ export default function Accounts() {
         >
           <div className="grid grid-cols-2 gap-3">
             <button
-              className="flex flex-col items-center gap-2 rounded-xl border border-border p-5 text-center hover:bg-muted/50 transition-colors"
+              className="flex items-center gap-3 rounded-xl border border-border px-4 py-3 text-left hover:bg-muted/50 transition-colors"
               onClick={() => {
                 setShowImportPicker(false)
                 fileInputRef.current?.click()
               }}
             >
-              <FileText className="size-8 text-muted-foreground" />
-              <div className="font-medium">{t('accounts.importTxt')}</div>
-              <div className="text-xs text-muted-foreground">{t('accounts.importTxtDesc')}</div>
+              <FileText className="size-5 shrink-0 text-muted-foreground" />
+              <div>
+                <div className="text-sm font-medium">{t('accounts.importTxt')}</div>
+                <div className="text-[11px] text-muted-foreground">{t('accounts.importTxtDesc')}</div>
+              </div>
             </button>
             <button
-              className="flex flex-col items-center gap-2 rounded-xl border border-border p-5 text-center hover:bg-muted/50 transition-colors"
+              className="flex items-center gap-3 rounded-xl border border-border px-4 py-3 text-left hover:bg-muted/50 transition-colors"
               onClick={() => {
                 setShowImportPicker(false)
                 jsonInputRef.current?.click()
               }}
             >
-              <FileJson className="size-8 text-muted-foreground" />
-              <div className="font-medium">{t('accounts.importJson')}</div>
-              <div className="text-xs text-muted-foreground">{t('accounts.importJsonDesc')}</div>
+              <FileJson className="size-5 shrink-0 text-muted-foreground" />
+              <div>
+                <div className="text-sm font-medium">{t('accounts.importJson')}</div>
+                <div className="text-[11px] text-muted-foreground">{t('accounts.importJsonDesc')}</div>
+              </div>
             </button>
           </div>
         </Modal>
@@ -881,6 +901,10 @@ export default function Accounts() {
             }}
             onClose={() => setTestingAccount(null)}
           />
+        )}
+
+        {usageAccount && (
+          <AccountUsageModal account={usageAccount} onClose={() => setUsageAccount(null)} />
         )}
 
         {confirmDialog}

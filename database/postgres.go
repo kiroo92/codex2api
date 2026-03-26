@@ -826,6 +826,24 @@ type ChartAggregation struct {
 	Models   []ChartModelPoint    `json:"models"`
 }
 
+// AccountModelStat 单个模型的使用统计
+type AccountModelStat struct {
+	Model    string `json:"model"`
+	Requests int64  `json:"requests"`
+	Tokens   int64  `json:"tokens"`
+}
+
+// AccountUsageDetail 单账号用量详情
+type AccountUsageDetail struct {
+	TotalRequests   int64              `json:"total_requests"`
+	TotalTokens     int64              `json:"total_tokens"`
+	InputTokens     int64              `json:"input_tokens"`
+	OutputTokens    int64              `json:"output_tokens"`
+	ReasoningTokens int64              `json:"reasoning_tokens"`
+	CachedTokens    int64              `json:"cached_tokens"`
+	Models          []AccountModelStat `json:"models"`
+}
+
 // GetChartAggregation 在数据库层完成图表数据的分桶聚合（无需传输原始行）
 func (db *DB) GetChartAggregation(ctx context.Context, start, end time.Time, bucketMinutes int) (*ChartAggregation, error) {
 	if bucketMinutes < 1 {
@@ -901,6 +919,58 @@ func (db *DB) GetChartAggregation(ctx context.Context, start, end time.Time, buc
 	}
 
 	return result, mRows.Err()
+}
+
+// GetAccountUsageStats 查询单个账号的用量统计和模型分布
+func (db *DB) GetAccountUsageStats(ctx context.Context, accountID int64) (*AccountUsageDetail, error) {
+	result := &AccountUsageDetail{}
+
+	// 汇总统计
+	summaryQuery := `
+	SELECT
+		COUNT(*),
+		COALESCE(SUM(total_tokens), 0),
+		COALESCE(SUM(input_tokens), 0),
+		COALESCE(SUM(output_tokens), 0),
+		COALESCE(SUM(reasoning_tokens), 0),
+		COALESCE(SUM(cached_tokens), 0)
+	FROM usage_logs
+	WHERE account_id = $1 AND status_code <> 499`
+
+	if err := db.conn.QueryRowContext(ctx, summaryQuery, accountID).Scan(
+		&result.TotalRequests, &result.TotalTokens,
+		&result.InputTokens, &result.OutputTokens,
+		&result.ReasoningTokens, &result.CachedTokens,
+	); err != nil {
+		return nil, err
+	}
+
+	// 模型分布
+	modelQuery := `
+	SELECT COALESCE(model, 'unknown'), COUNT(*) AS requests, COALESCE(SUM(total_tokens), 0) AS tokens
+	FROM usage_logs
+	WHERE account_id = $1 AND status_code <> 499
+	GROUP BY 1
+	ORDER BY 2 DESC`
+
+	rows, err := db.conn.QueryContext(ctx, modelQuery, accountID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var m AccountModelStat
+		if err := rows.Scan(&m.Model, &m.Requests, &m.Tokens); err != nil {
+			return nil, err
+		}
+		result.Models = append(result.Models, m)
+	}
+	if result.Models == nil {
+		result.Models = []AccountModelStat{}
+	}
+
+	return result, rows.Err()
 }
 
 // ListUsageLogsByTimeRange 按时间范围查询请求日志
