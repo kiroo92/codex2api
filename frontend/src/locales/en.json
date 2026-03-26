@@ -11,6 +11,7 @@
   },
   "common": {
     "online": "Online",
+    "newVersionAvailable": "New version {{version}} available",
     "refresh": "Refresh",
     "save": "Save",
     "saving": "Saving…",

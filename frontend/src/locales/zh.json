@@ -11,6 +11,7 @@
   },
   "common": {
     "online": "在线",
+    "newVersionAvailable": "新版本 {{version}} 可用",
     "refresh": "刷新",
     "save": "保存",
     "saving": "保存中…",

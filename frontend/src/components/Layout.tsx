@@ -4,6 +4,7 @@ import { LayoutDashboard, Users, Activity, Settings, Server, Workflow, Sun, Moon
 import { useTranslation } from 'react-i18next'
 import logoImg from '../assets/logo.png'
 import { useTheme } from '../hooks/useTheme'
+import { useVersionCheck } from '../hooks/useVersionCheck'
 
 type NavDef = {
   to: string
@@ -25,6 +26,7 @@ const navDefs: NavDef[] = [
 export default function Layout({ children }: PropsWithChildren) {
   const { theme, toggle } = useTheme()
   const { t, i18n } = useTranslation()
+  const { hasUpdate, latestVersion } = useVersionCheck()
 
   const toggleLang = () => {
     const next = i18n.language === 'zh' ? 'en' : 'zh'
@@ -46,8 +48,14 @@ export default function Layout({ children }: PropsWithChildren) {
                   <h1 className="text-[26px] leading-tight font-bold bg-gradient-to-br from-[hsl(258,60%,63%)] to-[hsl(210,80%,60%)] bg-clip-text text-transparent">
                     CodexProxy
                   </h1>
-                  <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-primary/10 text-primary text-[11px] font-bold w-fit">
+                  <span
+                    className="relative inline-flex items-center px-2 py-0.5 rounded-full bg-primary/10 text-primary text-[11px] font-bold w-fit"
+                    title={hasUpdate && latestVersion ? t('common.newVersionAvailable', { version: latestVersion }) : undefined}
+                  >
                     {__APP_VERSION__}
+                    {hasUpdate && (
+                      <span className="absolute -top-0.5 -right-0.5 size-2 rounded-full bg-red-500 animate-pulse" />
+                    )}
                   </span>
                 </div>
               </div>
