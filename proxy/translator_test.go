@@ -523,6 +523,49 @@ func TestPrepareOpenAIResponsesBody_NormalizesLegacyImageContentPart(t *testing.
 	}
 }
 
+func TestPrepareOpenAIResponsesBody_ImageGenerationToolChoiceInjectsTool(t *testing.T) {
+	tests := []struct {
+		name string
+		raw  string
+	}{
+		{
+			name: "object tool_choice",
+			raw: `{
+				"model":"gpt-5.4",
+				"input":"draw a cat",
+				"tool_choice":{"type":"image_generation"}
+			}`,
+		},
+		{
+			name: "string tool_choice",
+			raw: `{
+				"model":"gpt-5.4",
+				"input":"draw a cat",
+				"tool_choice":"image_generation"
+			}`,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			got := PrepareOpenAIResponsesBody([]byte(tc.raw))
+
+			if toolType := gjson.GetBytes(got, "tools.0.type").String(); toolType != "image_generation" {
+				t.Fatalf("tool type = %q, want image_generation; body=%s", toolType, got)
+			}
+			if toolModel := gjson.GetBytes(got, "tools.0.model").String(); toolModel != defaultImagesToolModel {
+				t.Fatalf("tool model = %q, want %q; body=%s", toolModel, defaultImagesToolModel, got)
+			}
+			if gjson.GetBytes(got, "include").Exists() {
+				t.Fatalf("OpenAI Responses body should not get Codex include defaults; body=%s", got)
+			}
+			if gjson.GetBytes(got, "store").Exists() {
+				t.Fatalf("OpenAI Responses body should not get Codex store defaults; body=%s", got)
+			}
+		})
+	}
+}
+
 func TestPrepareResponsesBody_SanitizesTextFormatJSONSchema(t *testing.T) {
 	raw := []byte(`{
 		"model":"gpt-5.4",
@@ -800,6 +843,24 @@ func TestPrepareResponsesBody_DefaultsIncludeForResponses(t *testing.T) {
 	}
 	if instructions := gjson.GetBytes(got, "instructions").String(); !strings.Contains(instructions, codexImageGenerationBridgeMarker) {
 		t.Fatalf("expected bridge instructions, got %q", instructions)
+	}
+}
+
+func TestPrepareResponsesBody_ToolChoiceImageGenerationAutoInjectsTool(t *testing.T) {
+	raw := []byte(`{
+		"model":"gpt-5.4",
+		"input":"draw a poster",
+		"tool_choice":{"type":"image_generation"},
+		"text":{"format":{"type":"json_object"}}
+	}`)
+
+	got, _ := PrepareResponsesBody(raw)
+
+	if toolType := gjson.GetBytes(got, "tools.0.type").String(); toolType != "image_generation" {
+		t.Fatalf("tool type = %q, want image_generation; body=%s", toolType, got)
+	}
+	if toolModel := gjson.GetBytes(got, "tools.0.model").String(); toolModel != defaultImagesToolModel {
+		t.Fatalf("tool model = %q, want %q; body=%s", toolModel, defaultImagesToolModel, got)
 	}
 }
 
@@ -2051,4 +2112,3 @@ func TestTranslateRequest_NormalizesWebSearchPreviewToolType(t *testing.T) {
 		t.Fatalf("expected unknown field to be stripped; body=%s", got)
 	}
 }
-

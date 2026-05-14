@@ -298,6 +298,24 @@ func hasResponsesImageGenerationTool(body map[string]any) bool {
 	return false
 }
 
+func responsesImageGenerationToolChoice(body map[string]any) string {
+	if len(body) == 0 {
+		return ""
+	}
+	switch choice := body["tool_choice"].(type) {
+	case string:
+		return strings.TrimSpace(choice)
+	case map[string]any:
+		return strings.TrimSpace(firstNonEmptyAnyString(choice["type"]))
+	default:
+		return ""
+	}
+}
+
+func hasResponsesImageGenerationToolChoice(body map[string]any) bool {
+	return strings.EqualFold(responsesImageGenerationToolChoice(body), "image_generation")
+}
+
 func ensureResponsesImageGenerationTool(body map[string]any) bool {
 	if len(body) == 0 {
 		return false
@@ -603,10 +621,26 @@ func shouldAutoInjectResponsesImageGenerationTool(body map[string]any) bool {
 	if len(body) == 0 || hasResponsesImageGenerationTool(body) {
 		return false
 	}
+	if hasResponsesImageGenerationToolChoice(body) {
+		return true
+	}
 	if hasTopLevelResponsesImageOptions(body) {
 		return true
 	}
 	return !hasStructuredResponsesFormat(body)
+}
+
+func shouldInjectOpenAIResponsesImageGenerationTool(body map[string]any) bool {
+	if len(body) == 0 || hasResponsesImageGenerationTool(body) {
+		return false
+	}
+	if hasResponsesImageGenerationToolChoice(body) {
+		return true
+	}
+	if hasTopLevelResponsesImageOptions(body) {
+		return true
+	}
+	return isImageOnlyModel(strings.TrimSpace(firstNonEmptyAnyString(body["model"])))
 }
 
 func normalizeResponsesImageOnlyModel(body map[string]any) bool {
@@ -1461,6 +1495,11 @@ func PrepareOpenAIResponsesBody(rawBody []byte) []byte {
 	normalizeResponsesFunctionTools(body)
 	normalizeResponsesContentPartTypes(body)
 	normalizeResponsesInputMessageContent(body)
+	if shouldInjectOpenAIResponsesImageGenerationTool(body) {
+		ensureResponsesImageGenerationTool(body)
+	}
+	moveTopLevelResponsesImageOptions(body)
+	normalizeResponsesImageGenerationTools(body, extractResponsesPromptText(body))
 
 	result, err := json.Marshal(body)
 	if err != nil {
