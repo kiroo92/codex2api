@@ -619,7 +619,7 @@ func (a *Account) schedulerBreakdownLocked(now time.Time) SchedulerBreakdown {
 		}
 	}
 
-	if !a.CreditSkipUsageWindow && a.UsagePercent7dValid && strings.EqualFold(a.PlanType, "free") {
+	if !(a.CreditEnabled && a.CreditSkipUsageWindow) && a.UsagePercent7dValid && strings.EqualFold(a.PlanType, "free") {
 		switch {
 		case a.UsagePercent7d >= 100:
 			breakdown.UsagePenalty7d = 40
@@ -803,7 +803,7 @@ func (a *Account) recomputeSchedulerLocked(baseLimit int64) {
 	if !a.LastUnauthorizedAt.IsZero() && now.Sub(a.LastUnauthorizedAt) < 24*time.Hour && tier == HealthTierHealthy {
 		tier = HealthTierWarm
 	}
-	if !a.CreditSkipUsageWindow && a.UsagePercent7dValid && strings.EqualFold(a.PlanType, "free") {
+	if !(a.CreditEnabled && a.CreditSkipUsageWindow) && a.UsagePercent7dValid && strings.EqualFold(a.PlanType, "free") {
 		switch {
 		case a.UsagePercent7d >= 95:
 			tier = HealthTierRisky
@@ -882,7 +882,7 @@ func (a *Account) IsAvailable() bool {
 
 // usageExhaustedLocked 判断 Free 账号 7d 用量是否已耗尽（需持有 mu 读锁）
 func (a *Account) usageExhaustedLocked() bool {
-	if a.CreditSkipUsageWindow {
+	if a.CreditEnabled && a.CreditSkipUsageWindow {
 		return false
 	}
 	return a.UsagePercent7dValid && strings.EqualFold(a.PlanType, "free") && a.UsagePercent7d >= 100
@@ -2972,6 +2972,12 @@ func (s *Store) GetSchedulerMode() string {
 
 // SetSchedulerMode 设置调度模式并传播到 FastScheduler
 func (s *Store) SetSchedulerMode(mode string) {
+	switch mode {
+	case "round_robin", "remaining_quota":
+		// ok
+	default:
+		mode = "round_robin"
+	}
 	s.schedulerMode.Store(mode)
 	if scheduler := s.getFastScheduler(); scheduler != nil {
 		scheduler.SetSchedulerMode(mode)
@@ -3111,7 +3117,8 @@ func (s *Store) ApplyAccountGroups(dbID int64, groupIDs []int64) bool {
 }
 
 // UpdateAccountCredit 更新账号信用设置
-func (s *Store) UpdateAccountCredit(dbID int64, creditEnabled, creditSkipUsageWindow bool) error {
+// 传入 nil 表示不修改该字段。
+func (s *Store) UpdateAccountCredit(dbID int64, creditEnabled, creditSkipUsageWindow *bool) error {
 	acc := s.FindByID(dbID)
 	if acc == nil {
 		return fmt.Errorf("账号 %d 不存在", dbID)
@@ -3122,8 +3129,12 @@ func (s *Store) UpdateAccountCredit(dbID int64, creditEnabled, creditSkipUsageWi
 		return err
 	}
 	acc.mu.Lock()
-	acc.CreditEnabled = creditEnabled
-	acc.CreditSkipUsageWindow = creditSkipUsageWindow
+	if creditEnabled != nil {
+		acc.CreditEnabled = *creditEnabled
+	}
+	if creditSkipUsageWindow != nil {
+		acc.CreditSkipUsageWindow = *creditSkipUsageWindow
+	}
 	acc.recomputeSchedulerLocked(atomic.LoadInt64(&s.maxConcurrency))
 	acc.mu.Unlock()
 	s.fastSchedulerUpdate(acc)

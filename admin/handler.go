@@ -683,21 +683,19 @@ func (h *Handler) UpdateAccountCredit(c *gin.Context) {
 		return
 	}
 
-	creditEnabled := false
-	if req.CreditEnabled != nil {
-		creditEnabled = *req.CreditEnabled
-	}
-	creditSkipUsageWindow := false
-	if req.CreditSkipUsageWindow != nil {
-		creditSkipUsageWindow = *req.CreditSkipUsageWindow
+	acc := h.store.FindByID(id)
+	if acc == nil {
+		writeError(c, http.StatusNotFound, "账号不存在")
+		return
 	}
 
-	if err := h.store.UpdateAccountCredit(id, creditEnabled, creditSkipUsageWindow); err != nil {
+	// 传入 *bool：nil = 不修改该字段
+	if err := h.store.UpdateAccountCredit(id, req.CreditEnabled, req.CreditSkipUsageWindow); err != nil {
 		writeError(c, http.StatusInternalServerError, "更新信用设置失败: "+err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "信用设置已更新", "credit_enabled": creditEnabled, "credit_skip_usage_window": creditSkipUsageWindow})
+	c.JSON(http.StatusOK, gin.H{"message": "信用设置已更新", "credit_enabled": acc.CreditEnabled, "credit_skip_usage_window": acc.CreditSkipUsageWindow})
 }
 
 func (h *Handler) UpdateAccountScheduler(c *gin.Context) {

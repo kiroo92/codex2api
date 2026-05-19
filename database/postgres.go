@@ -3365,11 +3365,32 @@ func (db *DB) SetAccountLocked(ctx context.Context, id int64, locked bool) error
 }
 
 // UpdateAccountCredit 更新账号的信用设置（credit_enabled / credit_skip_usage_window）
-func (db *DB) UpdateAccountCredit(ctx context.Context, id int64, creditEnabled, creditSkipUsageWindow bool) error {
-	_, err := db.conn.ExecContext(ctx,
-		`UPDATE accounts SET credit_enabled = $1, credit_skip_usage_window = $2, updated_at = CURRENT_TIMESTAMP WHERE id = $3`,
-		creditEnabled, creditSkipUsageWindow, id,
-	)
+// 传入 nil 表示不修改该字段，仅 SET 非 nil 的列。
+func (db *DB) UpdateAccountCredit(ctx context.Context, id int64, creditEnabled, creditSkipUsageWindow *bool) error {
+	var setClauses []string
+	var args []interface{}
+	argIdx := 1
+
+	if creditEnabled != nil {
+		setClauses = append(setClauses, fmt.Sprintf("credit_enabled = $%d", argIdx))
+		args = append(args, *creditEnabled)
+		argIdx++
+	}
+	if creditSkipUsageWindow != nil {
+		setClauses = append(setClauses, fmt.Sprintf("credit_skip_usage_window = $%d", argIdx))
+		args = append(args, *creditSkipUsageWindow)
+		argIdx++
+	}
+
+	if len(setClauses) == 0 {
+		return nil // 没有要更新的字段
+	}
+
+	setClauses = append(setClauses, "updated_at = CURRENT_TIMESTAMP")
+	query := "UPDATE accounts SET " + strings.Join(setClauses, ", ") + fmt.Sprintf(" WHERE id = $%d", argIdx)
+	args = append(args, id)
+
+	_, err := db.conn.ExecContext(ctx, query, args...)
 	return err
 }
 
