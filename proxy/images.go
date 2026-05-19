@@ -913,6 +913,7 @@ func (h *Handler) forwardImagesRequest(c *gin.Context, inboundEndpoint, requestM
 	var lastStatusCode int
 	var lastBody []byte
 	excludeAccounts := make(map[int64]bool)
+	streamStarted := false
 
 	for attempt := 0; attempt < maxImageAttempts; attempt++ {
 		if err := c.Request.Context().Err(); err != nil {
@@ -1008,6 +1009,7 @@ func (h *Handler) forwardImagesRequest(c *gin.Context, inboundEndpoint, requestM
 		var imageLogInfo imageUsageLogInfo
 		var readErr error
 		if stream {
+				streamStarted = true
 			usage, imageCount, firstTokenMs, imageLogInfo, readErr = h.streamImagesResponse(c, resp.Body, responseFormat, streamPrefix, requestModel, start)
 		} else {
 			var out []byte
@@ -1042,7 +1044,9 @@ func (h *Handler) forwardImagesRequest(c *gin.Context, inboundEndpoint, requestM
 			if shouldRetryImageStreamError(readErr, &generalRetries, maxRetries, attempt, maxImageAttempts) {
 				lastStatusCode = statusCode
 				lastBody = []byte(readErr.Error())
-				continue
+				if !streamStarted {
+					continue
+				}
 			}
 			// Non-retryable -- deliver error response already written above.
 			return
