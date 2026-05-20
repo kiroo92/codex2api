@@ -224,6 +224,7 @@ var codexAllowedForwardHeaders = []string{
 	"X-Codex-Turn-State",
 	"X-Codex-Turn-Metadata",
 	"X-Client-Request-Id",
+	"X-Codex-Beta-Features",
 }
 
 // WebsocketExecuteFunc WebSocket 执行函数（由 wsrelay 包在 main.go 中注册，避免循环依赖）
