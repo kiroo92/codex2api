@@ -1052,7 +1052,10 @@ func (h *Handler) forwardImagesRequest(c *gin.Context, inboundEndpoint, requestM
 					continue
 				}
 			}
-			// Non-retryable -- deliver error response already written above.
+			// Non-retryable -- deliver error response if nothing written yet.
+			if !c.Writer.Written() {
+				c.JSON(http.StatusBadGateway, gin.H{"error": gin.H{"message": readErr.Error(), "type": "upstream_error"}})
+			}
 			h.logUsageForRequest(c, &database.UsageLogInput{
 				AccountID: account.ID(),
 				Endpoint:  inboundEndpoint,
