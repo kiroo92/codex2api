@@ -176,9 +176,9 @@ func (h *Handler) TestConnection(c *gin.Context) {
 				sendTestEvent(c, testEvent{Type: "error", Error: formatNoOutputUpstreamError(data)})
 				return false
 			}
-			// 测试成功即重置冷却状态，用量限制由调度器自行判断
+			// 测试成功即重置失败/冷却状态，用量限制由调度器自行判断
 			if isOpenAIResponsesAccount || (!usageState.Premium5hRateLimited && (!usageState.HasUsage7d || usageState.UsagePct7d < 100)) {
-				h.store.ClearCooldown(account)
+				h.store.RecordManualTestSuccess(account, time.Since(start))
 			}
 			// 如果上游未返回用量头，清除旧的用量缓存，避免显示过期数据
 			if !isOpenAIResponsesAccount && !usageState.HasUsage7d && !usageState.HasUsage5h {
@@ -704,6 +704,7 @@ func (h *Handler) runSingleBatchTest(ctx context.Context, acc *auth.Account) (st
 		return "failed", modelErr.Error()
 	}
 	payload := buildTestPayload(testModel)
+	start := time.Now()
 
 	var resp *http.Response
 	var err error
@@ -746,8 +747,8 @@ func (h *Handler) runSingleBatchTest(ctx context.Context, acc *auth.Account) (st
 				acc.ClearUsageCache()
 			}
 		}
-		// 测试成功即重置冷却状态，用量限制由调度器自行判断
-		h.store.ClearCooldown(acc)
+		// 测试成功即重置失败/冷却状态，用量限制由调度器自行判断
+		h.store.RecordManualTestSuccess(acc, time.Since(start))
 		return "success", "测试通过"
 	case http.StatusUnauthorized:
 		if !acc.IsOpenAIResponsesAPI() {

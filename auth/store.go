@@ -3991,6 +3991,54 @@ func (s *Store) ClearCooldown(acc *Account) {
 	}
 }
 
+// RecordManualTestSuccess clears failure/cooldown state after an explicit admin
+// connection test succeeds.
+func (s *Store) RecordManualTestSuccess(acc *Account, latency time.Duration) {
+	if acc == nil {
+		return
+	}
+
+	now := time.Now()
+	atomic.StoreInt32(&acc.Disabled, 0)
+	acc.mu.Lock()
+	wasCooling := acc.Status == StatusCooldown
+	wasError := acc.Status == StatusError
+	wasBanned := acc.HealthTier == HealthTierBanned
+	premium5hLimited := acc.premium5hRateLimitedLocked(now)
+	acc.recordLatencyLocked(latency)
+	acc.recordResultLocked(true)
+	if wasCooling || wasError {
+		acc.Status = StatusReady
+	}
+	acc.ErrorMsg = ""
+	acc.CooldownUtil = time.Time{}
+	acc.CooldownReason = ""
+	acc.LastSuccessAt = now
+	acc.SuccessStreak = clampInt(acc.SuccessStreak+1, 0, 20)
+	acc.FailureStreak = 0
+	if premium5hLimited {
+		acc.HealthTier = HealthTierRisky
+	} else if wasBanned || wasCooling || wasError {
+		acc.HealthTier = HealthTierWarm
+	} else if acc.HealthTier == "" {
+		acc.HealthTier = HealthTierHealthy
+	}
+	acc.recomputeSchedulerLocked(atomic.LoadInt64(&s.maxConcurrency))
+	acc.mu.Unlock()
+	s.fastSchedulerUpdate(acc)
+	s.deleteCachedAccountCooldown(acc.DBID)
+
+	if s.db == nil {
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	if err := s.db.ClearError(ctx, acc.DBID); err != nil {
+		log.Printf("[账号 %d] 清理账号测试成功状态失败: %v", acc.DBID, err)
+	}
+}
+
 // ReportRequestSuccess 记录一次成功请求，用于动态调度评分
 func (s *Store) ReportRequestSuccess(acc *Account, latency time.Duration) {
 	if acc == nil {

@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -146,5 +147,67 @@ func TestRunSingleBatchTestTimesOutSlowStreamingBody(t *testing.T) {
 	}
 	if account.LastTimeoutAt.IsZero() {
 		t.Fatal("timeout should be recorded in scheduler health")
+	}
+}
+
+func TestRunSingleBatchTestSuccessRecoversBannedAccount(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(`{"id":"resp_test","object":"response"}`))
+	}))
+	defer server.Close()
+
+	store := auth.NewStore(nil, nil, nil)
+	account := &auth.Account{
+		DBID:               1,
+		UpstreamType:       auth.UpstreamOpenAIResponses,
+		BaseURL:            server.URL,
+		APIKey:             "test-key",
+		Models:             []string{"gpt-4o-mini"},
+		Status:             auth.StatusCooldown,
+		CooldownUtil:       time.Now().Add(time.Hour),
+		CooldownReason:     "unauthorized",
+		HealthTier:         auth.HealthTierBanned,
+		FailureStreak:      3,
+		LastFailureAt:      time.Now().Add(-time.Minute),
+		LastUnauthorizedAt: time.Now().Add(-time.Minute),
+	}
+	atomic.StoreInt32(&account.Disabled, 1)
+	store.AddAccount(account)
+	handler := &Handler{store: store}
+
+	status, msg := handler.runSingleBatchTest(context.Background(), account)
+	if status != "success" {
+		t.Fatalf("status = %q, message = %q, want success", status, msg)
+	}
+
+	account.Mu().RLock()
+	accountStatus := account.Status
+	healthTier := account.HealthTier
+	cooldownUntil := account.CooldownUtil
+	cooldownReason := account.CooldownReason
+	failureStreak := account.FailureStreak
+	successStreak := account.SuccessStreak
+	lastSuccessAt := account.LastSuccessAt
+	account.Mu().RUnlock()
+
+	if atomic.LoadInt32(&account.Disabled) != 0 {
+		t.Fatal("successful batch test should clear disabled flag")
+	}
+	if accountStatus != auth.StatusReady {
+		t.Fatalf("Status = %v, want ready", accountStatus)
+	}
+	if healthTier == auth.HealthTierBanned {
+		t.Fatal("successful batch test should recover banned health tier")
+	}
+	if !cooldownUntil.IsZero() || cooldownReason != "" {
+		t.Fatalf("cooldown = (%s, %q), want cleared", cooldownUntil, cooldownReason)
+	}
+	if failureStreak != 0 {
+		t.Fatalf("FailureStreak = %d, want 0", failureStreak)
+	}
+	if successStreak == 0 || lastSuccessAt.IsZero() {
+		t.Fatal("successful batch test should record scheduler success")
 	}
 }
