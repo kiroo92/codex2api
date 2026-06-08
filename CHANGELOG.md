@@ -1,5 +1,23 @@
 # Changelog
 
+## v2.2.8 - 2026-06-08
+
+### Features
+
+- **Account usage analytics.** Expanded the account usage details modal with Overview, Details, and Quality views, range-aware totals, richer model distribution controls, and quality signals including error rate, retry count, average first-token latency, P95 response time, streaming ratio, and compact ratio.
+- **Batch account import workflow.** Refresh Token batch import now has progress feedback and kicks off usage sampling so newly imported accounts do not require a separate manual batch test before usage data becomes visible.
+- **First-token mode setting (#207).** Added a system setting for strict vs loose first-token detection, making TTFT behavior configurable while keeping thinking/pre-output events from being counted incorrectly in strict mode.
+- **Usage visibility controls (#203, #209, #210).** Usage stats now support additional time ranges, full token-number display, compact request markers, and dedicated WS/Fast request badges.
+
+### Fixes
+
+- **Batch account test consistency (#194).** Batch tests now match single-account tests more closely by using the WHAM usage preflight and parsing real SSE terminal events from a short request; `response.failed`, missing output, and `usage_limit_reached` are no longer treated as successful account recovery.
+- **Forced WebSocket usage logs (#205, #210).** Requests forced through upstream WebSocket now persist and display the `via_websocket` marker correctly, with Fast tier shown as its own request badge.
+- **Responses compact and quota handling (#174, #201).** OpenAI Responses API-key accounts can forward `/v1/responses/compact`, and nested `usage_limit_reached` errors are handled consistently for cooldown and sampling.
+- **Billing tier policy persistence (#206).** `billing_tier_policy` now stays aligned across frontend save behavior, backend normalization, and database persistence.
+- **OAuth authorization UX.** OAuth authorization links can be regenerated and copied reliably, including HTTP admin deployments where the Clipboard API may be unavailable.
+- **Image and WS routing stability (#198).** Explicit image generation requests bypass forced WS routing, and `gpt-5.3-codex-spark` scheduling/model filtering is hardened.
+
 ## v2.2.7 - 2026-06-05
 
 ### Features
