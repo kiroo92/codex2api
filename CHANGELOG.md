@@ -1,6 +1,21 @@
 # Changelog
 
-## v2.3.2 - 2026-06-12
+## v2.3.3 - 2026-06-13
+
+### Features
+
+- **Cloud storage links for image generation (#240).** When S3-compatible cloud storage is configured and a client requests `response_format=url`, `/v1/images/generations` now uploads each generated image to object storage and returns a time-limited (1h) presigned link instead of a base64 data URL, falling back to the data URL on any upload or signing failure so the API never hard-fails on storage misconfig. Uploaded images are registered into the admin gallery via a lazily created synthetic job + asset record, so they appear in gallery/history and are cleaned up (DB row + backing object) on delete.
+- **API key token-limit unit selector (#234).** The API key 5h/7d token limit fields now offer a unit selector (token / K / M / B) so large quotas can be entered and displayed in readable units instead of raw token counts.
+
+### Fixes
+
+- **Request forwarding error handling and success accounting (#246).** Hardened the OpenAI Responses `ttftGuard` call site with explicit nil-safe wrapping, handled OpenAI/Codex compact response-body read failures while preserving the final 502, synced usage headers on Codex compact read failure and reported request success on the happy path, and rebuilt the Anthropic stream error SSE payload via `json.Marshal`.
+- **WebSocket relay stability (#247).** Improved `wsrelay` executor, manager, and session handling to keep upstream WebSocket relay connections stable.
+- **Function `tool_choice` shape normalized.** A `tool_choice` object missing `type` but carrying a `function` object or top-level `name` is now normalized to `type: "function"` with a flattened `name`, matching OpenAI SDK convention so the upstream no longer rejects the request.
+- **Missing encrypted reasoning content (#235).** `missing_required_parameter` errors on a `*.encrypted_content` param are now recognized alongside `invalid_encrypted_content`, so requests with absent encrypted reasoning content are retried instead of failing.
+- **5h usage freshness split from 7d (#241).** The 5h usage snapshot now persists its own `codex_5h_usage_updated_at` timestamp instead of overwriting the shared `codex_usage_updated_at`, so 5h and 7d freshness no longer clobber each other.
+- **Usage logs page size up to 500 (#244).** The usage logs endpoint now accepts a page size of 500.
+- **Read pages sanitizer narrowed (#245).** Tightened the Read pages sanitizer scope.
 
 ### Features
 
