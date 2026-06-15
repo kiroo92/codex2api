@@ -929,6 +929,27 @@
     "creditSkipWindowHint": "调度时不使用 7d/5h 用量窗口降权",
     "billed": "成本"
   },
+  "invite": {
+    "entry": "Codex 邀请",
+    "title": "Codex 邀请",
+    "description": "用已托管的 Codex 账号发送推荐邀请邮件",
+    "back": "返回账号列表",
+    "accountLabel": "选择账号",
+    "noCodexAccounts": "没有可用于邀请的 Codex 账号",
+    "noAccountSelected": "请选择一个账号",
+    "emailsLabel": "邀请邮箱",
+    "emailsPlaceholder": "每行一个邮箱，或用逗号/空格分隔",
+    "emailsHint": "支持多个邮箱，自动去重；单次最多 10 个。",
+    "noEmails": "请至少填写一个邮箱",
+    "send": "发送邀请",
+    "sending": "发送中…",
+    "sendSuccess": "邀请已发送",
+    "sendFailed": "发送失败：{{error}}",
+    "sendUpstreamFailed": "上游返回 {{code}}，发送未成功",
+    "resultTitle": "发送结果",
+    "resultOk": "成功",
+    "resultFailed": "失败（{{code}}）"
+  },
   "status": {
     "active": "可用",
     "ready": "就绪",

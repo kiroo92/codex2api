@@ -929,6 +929,27 @@
     "creditSkipWindowHint": "Bypass 7d/5h usage window penalties during scheduling",
     "billed": "Cost"
   },
+  "invite": {
+    "entry": "Codex Invite",
+    "title": "Codex Invite",
+    "description": "Send referral invites using a managed Codex account",
+    "back": "Back to accounts",
+    "accountLabel": "Select account",
+    "noCodexAccounts": "No Codex accounts available for invites",
+    "noAccountSelected": "Please select an account",
+    "emailsLabel": "Invite emails",
+    "emailsPlaceholder": "One email per line, or separated by comma/space",
+    "emailsHint": "Multiple emails supported, deduplicated automatically; up to 10 per request.",
+    "noEmails": "Please enter at least one email",
+    "send": "Send invites",
+    "sending": "Sending…",
+    "sendSuccess": "Invites sent",
+    "sendFailed": "Send failed: {{error}}",
+    "sendUpstreamFailed": "Upstream returned {{code}}, not sent",
+    "resultTitle": "Result",
+    "resultOk": "Success",
+    "resultFailed": "Failed ({{code}})"
+  },
   "status": {
     "active": "Available",
     "ready": "Ready",

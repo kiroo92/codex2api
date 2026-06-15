@@ -111,6 +111,28 @@ export interface AccountRow {
 
 export type AccountsResponse = ApiListResponse<'accounts', AccountRow>
 
+export interface InviteItem {
+  referral_id?: string
+  email?: string
+  invite_url?: string
+}
+
+export interface InviteResult {
+  ok: boolean
+  status_code: number
+  request_id?: string
+  referral_key: string
+  emails: string[]
+  invites?: InviteItem[]
+  upstream?: unknown
+  upstream_raw?: string
+}
+
+export interface InviteResponse {
+  ok: boolean
+  result: InviteResult
+}
+
 export interface RecycleBinAccountRow {
   id: number
   name: string

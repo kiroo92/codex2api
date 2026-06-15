@@ -2,8 +2,7 @@ import type { ChangeEvent, DragEvent, ReactNode } from "react";
 import { useCallback, useEffect, useRef, useState, useMemo } from "react";
 import { api, getAdminKey, resetAdminAuthState } from "../api";
 import Modal from "../components/Modal";
-import PageHeader from "../components/PageHeader";
-import Pagination from "../components/Pagination";
+import PageHeader from "../components/PageHeader";import Pagination from "../components/Pagination";
 import StateShell from "../components/StateShell";
 import StatusBadge from "../components/StatusBadge";
 import { useDataLoader, type LoadOptions } from "../hooks/useDataLoader";
@@ -82,6 +81,7 @@ import {
   LayoutGrid,
   Rows3,
   Recycle,
+  Mail,
   ArchiveRestore,
   ArrowLeft,
   ToggleLeft,
@@ -89,6 +89,7 @@ import {
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import AccountUsageModal from "../components/AccountUsageModal";
+import CodexInviteView from "../components/CodexInviteView";
 import Sub2APIImportModal from "../components/Sub2APIImportModal";
 import AccountQuotaDistributionChart from "../components/AccountQuotaDistributionChart";
 import AccountRateLimitRecoveryChart from "../components/AccountRateLimitRecoveryChart";
@@ -594,6 +595,7 @@ export default function Accounts() {
     getInitialAnalysisVisibility,
   );
   const [showRecycleBin, setShowRecycleBin] = useState(false);
+  const [showInvite, setShowInvite] = useState(false);
   const [showEmailDomainTags, setShowEmailDomainTags] = useState(
     getInitialEmailDomainVisibility,
   );
@@ -2933,7 +2935,13 @@ export default function Accounts() {
               runStreamingOperation={runStreamingAccountOperation}
             />
           ) : null}
-          <div className={showRecycleBin ? "hidden" : "contents"}>
+          {showInvite ? (
+            <CodexInviteView
+              accounts={accounts}
+              onClose={() => setShowInvite(false)}
+            />
+          ) : null}
+          <div className={showRecycleBin || showInvite ? "hidden" : "contents"}>
           <PageHeader
             title={t("accounts.title")}
             description={t("accounts.description")}
@@ -3077,6 +3085,14 @@ export default function Accounts() {
                 >
                   <Recycle className="size-3.5" />
                   {t("accounts.recycleBin")}
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => setShowInvite(true)}
+                  className="max-sm:w-full"
+                >
+                  <Mail className="size-3.5" />
+                  {t("invite.entry")}
                 </Button>
                 <Button onClick={() => setShowAdd(true)}>
                   <Plus className="size-3.5" />
