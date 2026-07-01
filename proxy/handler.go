@@ -2319,6 +2319,9 @@ func (h *Handler) ResponsesCompact(c *gin.Context) {
 	}
 
 	supportedModels := h.supportedModelIDs(c.Request.Context())
+	// newapi 等聚合网关会给 compact 请求追加 -openai-compact 后缀（如 gpt-5.4-openai-compact）。
+	// 在映射与校验之前剥除后缀，让 newapi 渠道保持该命名，而内部按基础模型 gpt-5.4 处理并转发上游。
+	rawBody, _, _ = stripCompactModelSuffixFromBody(rawBody)
 	rawBody, requestModel, mappedModel, mappingApplied := h.applyConfiguredModelMappingToBody(rawBody, supportedModels)
 	setRawRequestBody(c, rawBody)
 
