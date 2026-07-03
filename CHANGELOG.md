@@ -1,5 +1,11 @@
 # Changelog
 
+## v2.4.3 - 2026-07-04
+
+### Features
+
+- **API keys can restrict which account plans they dispatch to (multi-select).** Each API key's advanced limits gain an "Account plans" allowlist: pick one or more of `free` / `plus` / `pro` / `prolite` / `team` / `k12` / `go`, and the key will only ever be scheduled onto accounts whose plan matches one of them (e.g. a key limited to `plus` + `team` never touches free-tier accounts). Empty means no plan restriction. The filter is applied at the account-selection stage — the same layer as the existing group allowlist, with which it combines using AND (an account must satisfy both the plan and group constraints when both are set) — rather than rejecting the request after a pick, so a plan-restricted key simply behaves as if only the matching accounts exist. Matching is by raw lowercased `plan_type`, identical to the Accounts page plan filter, so `pro` and `prolite` stay distinct. Stored in the existing `limits` JSON column (no database migration), and because a plan-only restriction now counts as an access constraint, such keys always resolve their full metadata from the database and stay in sync on each request. The scheduler is only rebuilt when the allowlist actually changes, so the auth hot path isn't disturbed.
+
 ## v2.4.2 - 2026-07-04
 
 ### Features
