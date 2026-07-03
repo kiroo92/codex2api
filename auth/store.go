@@ -1822,6 +1822,17 @@ func (a *Account) NeedsUsageProbe(maxAge time.Duration) bool {
 	if !a.UsagePercent7dValid || a.UsageUpdatedAt.IsZero() || now.Sub(a.UsageUpdatedAt) > maxAge {
 		return true
 	}
+	// 5h / 7d 窗口重置时刻一到就立即探测一次（issue：倒计时归零后账号看似恢复"可用"，
+	// 但上游可能已被封禁）。判据：用量快照的采集时间早于重置时刻 => 展示的是重置前的
+	// 过期数据 => 需要一次 wham 探测确认真实状态，而不是盲目放行。探测成功后
+	// UsageUpdatedAt* 会晚于（旧）重置时刻，条件自然不再成立——每个重置边界只探一次，
+	// 不受 maxAge 延迟影响（比下面 maxAge 限速的兜底更及时）。
+	if a.UsagePercent5hValid && !a.Reset5hAt.IsZero() && !a.Reset5hAt.After(now) && a.UsageUpdatedAt5h.Before(a.Reset5hAt) {
+		return true
+	}
+	if a.UsagePercent7dValid && !a.Reset7dAt.IsZero() && !a.Reset7dAt.After(now) && a.UsageUpdatedAt.Before(a.Reset7dAt) {
+		return true
+	}
 	if a.effectiveAutoPause5h > 0 && !a.AutoPause5hDisabled {
 		if !a.UsagePercent5hValid || a.UsageUpdatedAt5h.IsZero() {
 			return true
