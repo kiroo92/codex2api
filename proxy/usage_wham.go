@@ -338,6 +338,7 @@ func ApplyWhamUsage(store *auth.Store, account *auth.Account, usage *WhamUsage) 
 	if w7d != nil {
 		resetAt := whamWindowResetAt(w7d, now)
 		account.SetReset7dAt(resetAt)
+		account.SetWindow7dSeconds(w7d.LimitWindowSeconds)
 		result.UsagePct7d = w7d.UsedPercent
 		result.HasUsage7d = true
 		if store != nil {
@@ -387,12 +388,13 @@ func pickClassifiedWhamWindows(primary, secondary *WhamUsageWindow, planType str
 		if w == nil {
 			continue
 		}
-		switch w.LimitWindowSeconds {
-		case whamWindow5hSeconds:
+		switch {
+		case w.LimitWindowSeconds == whamWindow5hSeconds:
 			if w5h == nil {
 				w5h = w
 			}
-		case whamWindow7dSeconds:
+		// 长窗口槽(7d)：plus/pro 为周窗(604800)，team plan 为月窗(约 2592000，28–31 天容差)。
+		case w.LimitWindowSeconds == whamWindow7dSeconds || auth.IsMonthlyWindowSeconds(w.LimitWindowSeconds):
 			if w7d == nil {
 				w7d = w
 			}

@@ -679,6 +679,8 @@ type accountResponse struct {
 	Usage7dDetail            *accountUsageWindow        `json:"usage_7d_detail,omitempty"`
 	Reset5hAt                string                     `json:"reset_5h_at,omitempty"`
 	Reset7dAt                string                     `json:"reset_7d_at,omitempty"`
+	Window7dKind             string                     `json:"usage_window_7d_kind,omitempty"`    // "monthly"(team 月窗)/"weekly"/""；供前端标「30天」而非误标「7天」
+	Window7dSeconds          *int64                     `json:"usage_window_7d_seconds,omitempty"` // 长窗口真实周期秒数
 	Billed5h                 *float64                   `json:"billed_5h"`
 	Billed7d                 *float64                   `json:"billed_7d"`
 	ScoreBreakdown           schedulerBreakdownResponse `json:"scheduler_breakdown"`
@@ -886,6 +888,10 @@ func (h *Handler) ListAccounts(c *gin.Context) {
 			}
 			if t := acc.GetReset7dAt(); !t.IsZero() {
 				resp.Reset7dAt = t.Format(time.RFC3339)
+			}
+			if sec := acc.GetWindow7dSeconds(); sec > 0 {
+				resp.Window7dSeconds = &sec
+				resp.Window7dKind = acc.Window7dKind()
 			}
 			if t := acc.GetLastUsedAt(); !t.IsZero() {
 				resp.LastUsedAt = t.Format(time.RFC3339)

@@ -3994,6 +3994,7 @@ func parseCodexUsageHeaders(resp *http.Response, account *auth.Account) (float64
 	if w7d.valid {
 		resetAt := now.Add(time.Duration(w7d.resetSec) * time.Second)
 		account.SetReset7dAt(resetAt)
+		account.SetWindow7dSeconds(int64(w7d.windowMin * 60))
 		account.SetUsagePercent7d(w7d.usedPct)
 		return w7d.usedPct, true
 	}

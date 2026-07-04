@@ -415,6 +415,49 @@ func TestPickClassifiedWhamWindows_LongResetPrimaryFallsBackTo7d(t *testing.T) {
 	}
 }
 
+// TestPickClassifiedWhamWindows_TeamMonthlyWindowRoutesTo7dSlot 验证 team plan 的
+// 月窗(约 30 天 = 2592000s)被归入长窗口(7d)槽，而非漏掉或误进 5h。
+func TestPickClassifiedWhamWindows_TeamMonthlyWindowRoutesTo7dSlot(t *testing.T) {
+	now := time.Now()
+	primary := &WhamUsageWindow{UsedPercent: 40, LimitWindowSeconds: 18000, ResetAt: now.Add(2 * time.Hour).Unix()}
+	monthly := &WhamUsageWindow{UsedPercent: 12, LimitWindowSeconds: 2_592_000, ResetAt: now.Add(20 * 24 * time.Hour).Unix()}
+
+	w5h, w7d := pickClassifiedWhamWindows(primary, monthly, "team", now)
+	if w5h != primary {
+		t.Fatalf("expected primary→5h, got %v", w5h)
+	}
+	if w7d != monthly {
+		t.Fatalf("expected monthly(2592000s)→7d slot, got %v", w7d)
+	}
+
+	// 28–31 天容差：29 天窗口也应识别为月窗。
+	tolMonthly := &WhamUsageWindow{UsedPercent: 5, LimitWindowSeconds: 29 * 24 * 60 * 60, ResetAt: now.Add(29 * 24 * time.Hour).Unix()}
+	if _, w7dTol := pickClassifiedWhamWindows(primary, tolMonthly, "team", now); w7dTol != tolMonthly {
+		t.Fatalf("expected 29d window→7d slot via tolerance, got %v", w7dTol)
+	}
+}
+
+// TestApplyWhamUsage_CapturesMonthlyWindowLength 验证 team 月窗的真实周期秒数被记入账号，
+// 供智能配速按真实周期(而非固定 7 天)计算。
+func TestApplyWhamUsage_CapturesMonthlyWindowLength(t *testing.T) {
+	store := auth.NewStore(nil, nil, &database.SystemSettings{MaxConcurrency: 2, TestConcurrency: 1, TestModel: "gpt-5.4"})
+	account := &auth.Account{DBID: 1, AccessToken: "at", PlanType: "team"}
+
+	now := time.Now()
+	usage := &WhamUsage{PlanType: "team"}
+	usage.RateLimit.PrimaryWindow = &WhamUsageWindow{UsedPercent: 40, LimitWindowSeconds: 18000, ResetAt: now.Add(2 * time.Hour).Unix()}
+	usage.RateLimit.SecondaryWindow = &WhamUsageWindow{UsedPercent: 12, LimitWindowSeconds: 2_592_000, ResetAt: now.Add(20 * 24 * time.Hour).Unix()}
+
+	ApplyWhamUsage(store, account, usage)
+
+	if got := account.GetWindow7dSeconds(); got != 2_592_000 {
+		t.Fatalf("Window7dSeconds=%d, want 2592000", got)
+	}
+	if kind := account.Window7dKind(); kind != "monthly" {
+		t.Fatalf("Window7dKind=%q, want monthly", kind)
+	}
+}
+
 func TestApplyWhamUsage_MarksPremium5hLimitedAt100Percent(t *testing.T) {
 	store := auth.NewStore(nil, nil, &database.SystemSettings{MaxConcurrency: 2, TestConcurrency: 1, TestModel: "gpt-5.4"})
 	account := &auth.Account{DBID: 1, AccessToken: "at", PlanType: "plus"}

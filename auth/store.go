@@ -68,7 +68,11 @@ type Account struct {
 	UsagePercent7d      float64 // 7d 窗口使用率 0-100+
 	UsagePercent7dValid bool
 	Reset7dAt           time.Time // 7d 窗口重置时间
-	UsagePercent5h      float64   // 5h 窗口使用率 0-100+
+	// Window7dSeconds 是「长窗口」(即 7d 槽)的真实周期秒数：plus/pro 通常为 7d(604800)，
+	// team plan 实为 monthly(约 2592000)。0 = 未知(按 7d 默认处理)。智能配速的自然速率
+	// 需按真实周期计算，否则 team 的月窗被当成 7 天 → natural 速率偏大 → 过度限流。
+	Window7dSeconds     int64
+	UsagePercent5h      float64 // 5h 窗口使用率 0-100+
 	UsagePercent5hValid bool
 	Reset5hAt           time.Time // 5h 窗口重置时间
 	UsageUpdatedAt      time.Time // 7d 用量快照刷新时间
@@ -87,8 +91,8 @@ type Account struct {
 	usageProbeInFlight          bool
 	recoveryProbeInFlight       bool
 	lastAuthVerifyAt            time.Time // WS 上游异常关闭后触发的鉴权验证探针节流时间戳
-	AutoPause5hThreshold        float64 // 0..1, 0 = disabled
-	AutoPause7dThreshold        float64 // 0..1, 0 = disabled
+	AutoPause5hThreshold        float64   // 0..1, 0 = disabled
+	AutoPause7dThreshold        float64   // 0..1, 0 = disabled
 	AutoPause5hDisabled         bool
 	AutoPause7dDisabled         bool
 	effectiveAutoPause5h        float64 // resolved: account > group > global
@@ -172,7 +176,7 @@ const (
 	// probeBoundaryLag 是「到点即探」定时器相对边界时刻的滞后量：稍晚于重置/冷却
 	// 结束再探，确保 NeedsUsageProbe 里 `!ResetAt.After(now)` 已成立，并给上游与
 	// 本地之间的时钟偏差留出余量，避免探早了仍拿到重置前的旧数据。
-	probeBoundaryLag = 2 * time.Second
+	probeBoundaryLag                 = 2 * time.Second
 	premium5hUrgencyWindow           = 4 * time.Hour
 	premium5hUrgencyMaxBonus         = 25.0
 	premium5hUrgencyMinRemainingPct  = 5.0
@@ -1014,6 +1018,23 @@ func parseSmartPacingWindows(raw string) (bool, bool) {
 	return w5h, w7d
 }
 
+// 长窗口(7d 槽)周期识别：team plan 的第二限流窗口实为月窗(约 30 天 = 2592000s)，
+// 而非 plus/pro 的周窗(7 天 = 604800s)。用 28–31 天容差兼容服务端的轻微抖动。
+const (
+	monthlyWindowMinSeconds int64 = 28 * 24 * 60 * 60
+	monthlyWindowMaxSeconds int64 = 31 * 24 * 60 * 60
+)
+
+func isMonthlyWindowSeconds(sec int64) bool {
+	return sec >= monthlyWindowMinSeconds && sec <= monthlyWindowMaxSeconds
+}
+
+// IsMonthlyWindowSeconds 判断窗口周期是否属月窗(28–31 天，含 2592000 精确值)。
+// 导出供 proxy 层的 wham/header 窗口分类复用，保证判据单一真源。
+func IsMonthlyWindowSeconds(sec int64) bool {
+	return isMonthlyWindowSeconds(sec)
+}
+
 // normalizeSmartPacingWindows 归一化为规范字符串（用于持久化与展示）。
 func normalizeSmartPacingWindows(raw string) string {
 	w5h, w7d := parseSmartPacingWindows(raw)
@@ -1054,6 +1075,15 @@ func smartPacingRatio(usage float64, valid bool, resetAt time.Time, window time.
 		return 0, false
 	}
 	return sustainable / natural, true
+}
+
+// window7dDurationLocked 返回长窗口(7d 槽)用于配速的周期时长：已知真实长度(team 月窗)时
+// 用真实值，否则回退到默认 7 天。调用方须持有 a.mu。
+func (a *Account) window7dDurationLocked() time.Duration {
+	if a.Window7dSeconds > 0 {
+		return time.Duration(a.Window7dSeconds) * time.Second
+	}
+	return smartPacingWindow7d
 }
 
 func normalizeAutoPause5hGuardBandPercent(value float64) float64 {
@@ -1127,7 +1157,8 @@ func (a *Account) smartPacingConcurrencyLimitLocked(limit int64, now time.Time) 
 		}
 	}
 	if a.smartPacingWindows7d {
-		if r, ok := smartPacingRatio(a.UsagePercent7d, a.UsagePercent7dValid, a.Reset7dAt, smartPacingWindow7d, now); ok && r < ratio {
+		// 用长窗口的真实周期(team 为月窗)算自然速率，避免月窗被当 7 天导致过度限流。
+		if r, ok := smartPacingRatio(a.UsagePercent7d, a.UsagePercent7dValid, a.Reset7dAt, a.window7dDurationLocked(), now); ok && r < ratio {
 			ratio = r
 		}
 	}
@@ -1482,6 +1513,39 @@ func (a *Account) SetReset7dAt(t time.Time) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	a.Reset7dAt = t
+}
+
+// SetWindow7dSeconds 记录长窗口(7d 槽)的真实周期秒数。仅在拿到有效长度(>0)时写入，
+// 避免不知道长度的路径(载入/种子)用 0 覆盖已探测到的真实值。
+func (a *Account) SetWindow7dSeconds(sec int64) {
+	if sec <= 0 {
+		return
+	}
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	a.Window7dSeconds = sec
+}
+
+// GetWindow7dSeconds 返回长窗口(7d 槽)的真实周期秒数(0=未知)。
+func (a *Account) GetWindow7dSeconds() int64 {
+	a.mu.RLock()
+	defer a.mu.RUnlock()
+	return a.Window7dSeconds
+}
+
+// Window7dKind 返回长窗口(7d 槽)的类型标签："monthly"(team 月窗)/"weekly"/""(未知)，
+// 供管理端把进度条标成「30天」而非误标「7天」。判据与 wham 分类的月窗容差一致。
+func (a *Account) Window7dKind() string {
+	a.mu.RLock()
+	defer a.mu.RUnlock()
+	switch {
+	case a.Window7dSeconds <= 0:
+		return ""
+	case isMonthlyWindowSeconds(a.Window7dSeconds):
+		return "monthly"
+	default:
+		return "weekly"
+	}
 }
 
 // GetReset5hAt 获取 5h 窗口重置时间
@@ -2032,9 +2096,9 @@ type Store struct {
 	boundaryProbeWakeCh chan struct{}
 	armedBoundaryAt     int64
 	lazyRefreshInFlight sync.Map
-	stopCh                             chan struct{}
-	stopOnce                           sync.Once
-	wg                                 sync.WaitGroup
+	stopCh              chan struct{}
+	stopOnce            sync.Once
+	wg                  sync.WaitGroup
 
 	// 代理池
 	proxyPool        []string // 已启用的代理 URL 列表
