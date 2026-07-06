@@ -39,6 +39,7 @@ export interface AccountRow {
   openai_responses_api?: boolean
   base_url?: string
   models?: string[]
+  model_mapping?: string
   custom_headers?: Record<string, string> | null
   health_tier?: string
   scheduler_score?: number
@@ -194,6 +195,7 @@ export interface AddOpenAIResponsesAccountRequest {
   base_url: string
   api_key: string
   models: string[]
+  model_mapping?: string
   proxy_url: string
   custom_headers?: Record<string, string> | null
 }
@@ -203,6 +205,7 @@ export interface UpdateOpenAIResponsesAccountRequest {
   base_url: string
   api_key?: string
   models: string[]
+  model_mapping?: string
   proxy_url: string
   custom_headers?: Record<string, string> | null
 }
@@ -920,6 +923,7 @@ export interface UsageLog {
   image_bytes: number
   image_format: string
   image_size: string
+  account_name: string
   account_email: string
   created_at: ISODateString
   account_billed: number

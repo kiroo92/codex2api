@@ -75,6 +75,7 @@ type Account struct {
 	BaseURL        string
 	APIKey         string
 	Models         []string
+	ModelMapping   string
 	Status         AccountStatus
 	CooldownUtil   time.Time
 	CooldownReason string // rate_limited / unauthorized / 空
@@ -310,6 +311,18 @@ func (a *Account) OpenAIResponsesModels() []string {
 		return []string{}
 	}
 	return cloneStringSlice(a.Models)
+}
+
+func (a *Account) OpenAIResponsesModelMapping() string {
+	if a == nil {
+		return ""
+	}
+	a.mu.RLock()
+	defer a.mu.RUnlock()
+	if !a.isOpenAIResponsesAPILocked() {
+		return ""
+	}
+	return strings.TrimSpace(a.ModelMapping)
 }
 
 func (a *Account) OpenAIResponsesCredentials() (baseURL, apiKey string) {
@@ -3254,6 +3267,7 @@ func (s *Store) buildAccountFromRow(ctx context.Context, row *database.AccountRo
 	baseURL := row.GetCredential("base_url")
 	apiKey := row.GetCredential("api_key")
 	models := normalizeModelList(row.GetCredentialStringSlice("models"))
+	modelMapping := strings.TrimSpace(row.GetCredential("model_mapping"))
 	isOpenAIResponsesAccount := strings.EqualFold(strings.TrimSpace(upstreamType), UpstreamOpenAIResponses) && strings.TrimSpace(baseURL) != "" && strings.TrimSpace(apiKey) != ""
 	if rt == "" && st == "" && at == "" && !isOpenAIResponsesAccount {
 		log.Printf("[账号 %d] 缺少 refresh_token、session_token 和 access_token，跳过", row.ID)
@@ -3272,6 +3286,7 @@ func (s *Store) buildAccountFromRow(ctx context.Context, row *database.AccountRo
 		BaseURL:       strings.TrimRight(strings.TrimSpace(baseURL), "/"),
 		APIKey:        strings.TrimSpace(apiKey),
 		Models:        models,
+		ModelMapping:  modelMapping,
 	}
 	if isOpenAIResponsesAccount {
 		account.HealthTier = HealthTierHealthy
@@ -5045,7 +5060,7 @@ func (s *Store) accountAllowedForAPIKey(acc *Account, apiKeyID int64) bool {
 	return acc.AllowsAPIKey(apiKeyID) && s.APIKeyAllowsAccount(apiKeyID, acc)
 }
 
-func (s *Store) ApplyOpenAIResponsesConfig(dbID int64, baseURL, apiKey string, models []string, proxyURL string) bool {
+func (s *Store) ApplyOpenAIResponsesConfig(dbID int64, baseURL, apiKey string, models []string, modelMapping string, proxyURL string) bool {
 	acc := s.FindByID(dbID)
 	if acc == nil {
 		return false
@@ -5058,6 +5073,7 @@ func (s *Store) ApplyOpenAIResponsesConfig(dbID int64, baseURL, apiKey string, m
 		acc.APIKey = strings.TrimSpace(apiKey)
 	}
 	acc.Models = normalizeModelList(models)
+	acc.ModelMapping = strings.TrimSpace(modelMapping)
 	acc.ProxyURL = strings.TrimSpace(proxyURL)
 	acc.Email = acc.BaseURL
 	acc.PlanType = "api"

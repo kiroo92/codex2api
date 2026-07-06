@@ -101,6 +101,27 @@ func TestListModelsIncludesLatestRequestedModels(t *testing.T) {
 	}
 }
 
+func TestSupportedModelIDsIncludesOpenAIResponsesModelMappingAliases(t *testing.T) {
+	store := auth.NewStore(nil, nil, &database.SystemSettings{MaxConcurrency: 2})
+	store.AddAccount(&auth.Account{
+		DBID:         1,
+		UpstreamType: auth.UpstreamOpenAIResponses,
+		BaseURL:      "https://api.openai.com",
+		APIKey:       "sk-test",
+		Models:       []string{"gpt-4.1-direct"},
+		ModelMapping: `{"client-alias":"gpt-4.1-direct","client-*":"gpt-4.1-direct"}`,
+	})
+	handler := &Handler{store: store}
+
+	models := handler.supportedModelIDs(context.Background())
+	if !slices.Contains(models, "client-alias") {
+		t.Fatalf("supported models should include exact account mapping alias; models=%v", models)
+	}
+	if slices.Contains(models, "client-*") {
+		t.Fatalf("supported models should not expose wildcard mapping patterns; models=%v", models)
+	}
+}
+
 func TestImageModelIsImageEndpointOnly(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
@@ -1042,6 +1063,43 @@ func newOpenAIResponsesRelayStore(upstreamURL string) *auth.Store {
 	return store
 }
 
+func newOpenAIResponsesRelayStoreWithModelMapping(upstreamURL string) *auth.Store {
+	store := auth.NewStore(nil, nil, &database.SystemSettings{
+		MaxConcurrency:      2,
+		MaxRetries:          0,
+		MaxRateLimitRetries: 0,
+	})
+	store.SetCodexModelMapping(`{"client-alias":"gpt-5.4"}`)
+	store.AddAccount(&auth.Account{
+		DBID:         1,
+		UpstreamType: auth.UpstreamOpenAIResponses,
+		BaseURL:      upstreamURL,
+		APIKey:       "sk-direct",
+		Models:       []string{"gpt-4.1-direct"},
+		ModelMapping: `{"client-alias":"gpt-4.1-direct"}`,
+		PlanType:     "api",
+	})
+	return store
+}
+
+func newOpenAIResponsesRelayStoreWithWildcardModelMapping(upstreamURL string) *auth.Store {
+	store := auth.NewStore(nil, nil, &database.SystemSettings{
+		MaxConcurrency:      2,
+		MaxRetries:          0,
+		MaxRateLimitRetries: 0,
+	})
+	store.AddAccount(&auth.Account{
+		DBID:         1,
+		UpstreamType: auth.UpstreamOpenAIResponses,
+		BaseURL:      upstreamURL,
+		APIKey:       "sk-direct",
+		Models:       []string{"gpt-4.1-direct"},
+		ModelMapping: `{"client-*":"gpt-4.1-direct"}`,
+		PlanType:     "api",
+	})
+	return store
+}
+
 func TestMessagesUsesOpenAIResponsesAPIAccount(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
@@ -1129,6 +1187,78 @@ func TestChatCompletionsUsesOpenAIResponsesAPIAccount(t *testing.T) {
 	}
 	if got := gjson.GetBytes(respBody, "usage.prompt_tokens").Int(); got != 10 {
 		t.Fatalf("usage.prompt_tokens = %d, want 10; body=%s", got, respBody)
+	}
+}
+
+func TestChatCompletionsUsesOpenAIResponsesAccountModelMapping(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	var seenPath, seenAuth string
+	var seenBody []byte
+	upstream := newOpenAIResponsesSSEUpstream(&seenPath, &seenAuth, &seenBody)
+	defer upstream.Close()
+
+	handler := NewHandler(newOpenAIResponsesRelayStoreWithModelMapping(upstream.URL), nil, nil, nil)
+
+	body := []byte(`{
+		"model":"client-alias",
+		"messages":[{"role":"user","content":"hi"}]
+	}`)
+	req := httptest.NewRequest(http.MethodPost, "/v1/chat/completions", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	recorder := httptest.NewRecorder()
+	ctx, _ := gin.CreateTestContext(recorder)
+	ctx.Request = req
+
+	handler.ChatCompletions(ctx)
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d; body=%s", recorder.Code, http.StatusOK, recorder.Body.String())
+	}
+	if seenPath != "/v1/responses" {
+		t.Fatalf("upstream path = %q, want /v1/responses", seenPath)
+	}
+	if seenAuth != "Bearer sk-direct" {
+		t.Fatalf("Authorization = %q, want Bearer sk-direct", seenAuth)
+	}
+	if model := gjson.GetBytes(seenBody, "model").String(); model != "gpt-4.1-direct" {
+		t.Fatalf("upstream model = %q, want gpt-4.1-direct; body=%s", model, seenBody)
+	}
+}
+
+func TestChatCompletionsUsesOpenAIResponsesAccountWildcardModelMapping(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	var seenPath, seenAuth string
+	var seenBody []byte
+	upstream := newOpenAIResponsesSSEUpstream(&seenPath, &seenAuth, &seenBody)
+	defer upstream.Close()
+
+	handler := NewHandler(newOpenAIResponsesRelayStoreWithWildcardModelMapping(upstream.URL), nil, nil, nil)
+
+	body := []byte(`{
+		"model":"client-wild",
+		"messages":[{"role":"user","content":"hi"}]
+	}`)
+	req := httptest.NewRequest(http.MethodPost, "/v1/chat/completions", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	recorder := httptest.NewRecorder()
+	ctx, _ := gin.CreateTestContext(recorder)
+	ctx.Request = req
+
+	handler.ChatCompletions(ctx)
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d; body=%s", recorder.Code, http.StatusOK, recorder.Body.String())
+	}
+	if seenPath != "/v1/responses" {
+		t.Fatalf("upstream path = %q, want /v1/responses", seenPath)
+	}
+	if seenAuth != "Bearer sk-direct" {
+		t.Fatalf("Authorization = %q, want Bearer sk-direct", seenAuth)
+	}
+	if model := gjson.GetBytes(seenBody, "model").String(); model != "gpt-4.1-direct" {
+		t.Fatalf("upstream model = %q, want gpt-4.1-direct; body=%s", model, seenBody)
 	}
 }
 

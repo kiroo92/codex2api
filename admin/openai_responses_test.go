@@ -60,3 +60,23 @@ func TestConnectionTestModelForOpenAIResponsesAccountUsesFirstSupportedFallback(
 		t.Fatalf("requested model = %q, want gpt-4.1", model)
 	}
 }
+
+func TestConnectionTestModelForOpenAIResponsesAccountAcceptsMappingAlias(t *testing.T) {
+	store := auth.NewStore(nil, nil, &database.SystemSettings{TestModel: "gpt-5.4"})
+	handler := &Handler{store: store}
+	account := &auth.Account{
+		UpstreamType: auth.UpstreamOpenAIResponses,
+		BaseURL:      "https://api.openai.com",
+		APIKey:       "sk-test",
+		Models:       []string{"gpt-4.1"},
+		ModelMapping: `{"client-alias":"gpt-4.1"}`,
+	}
+
+	model, err := handler.connectionTestModelForAccount(context.Background(), account, "client-alias")
+	if err != nil {
+		t.Fatalf("requested alias returned error: %v", err)
+	}
+	if model != "gpt-4.1" {
+		t.Fatalf("mapped model = %q, want gpt-4.1", model)
+	}
+}

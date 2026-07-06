@@ -518,6 +518,13 @@ func (h *Handler) connectionTestModelForAccount(ctx context.Context, account *au
 		return "", fmt.Errorf("该 Responses API 账号没有可用于测试的文本模型")
 	}
 	if requested != "" {
+		if mappedModel, ok := proxy.ResolveAccountModelMapping(account, requested); ok && mappedModel != "" {
+			for _, model := range textModels {
+				if strings.EqualFold(model, mappedModel) {
+					return mappedModel, nil
+				}
+			}
+		}
 		for _, model := range textModels {
 			if strings.EqualFold(model, requested) {
 				return model, nil
