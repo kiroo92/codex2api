@@ -1386,12 +1386,20 @@ func normalizeAccountModelMapping(raw string) (string, error) {
 		if !ok || strings.TrimSpace(key) == "" {
 			return "", fmt.Errorf("模型映射的源模型不能为空")
 		}
+		// 源模型别名会进入 /v1/models 响应、模型校验和使用日志，
+		// 必须与 models 列表同标准校验，防止任意字符串注入。
+		if err := security.ValidateModelName(strings.TrimSpace(key)); err != nil {
+			return "", fmt.Errorf("模型映射的源模型 %q 无效: %w", key, err)
+		}
 		var value string
 		if err := dec.Decode(&value); err != nil {
 			return "", fmt.Errorf("模型映射的目标模型必须是字符串")
 		}
 		if strings.TrimSpace(value) == "" {
 			return "", fmt.Errorf("模型映射的目标模型不能为空")
+		}
+		if err := security.ValidateModelName(strings.TrimSpace(value)); err != nil {
+			return "", fmt.Errorf("模型映射的目标模型 %q 无效: %w", value, err)
 		}
 	}
 	endTok, err := dec.Token()

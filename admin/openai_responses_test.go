@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/codex2api/auth"
@@ -78,5 +79,27 @@ func TestConnectionTestModelForOpenAIResponsesAccountAcceptsMappingAlias(t *test
 	}
 	if model != "gpt-4.1" {
 		t.Fatalf("mapped model = %q, want gpt-4.1", model)
+	}
+}
+
+// TestNormalizeAccountModelMappingValidatesModelNames 验证映射键值必须通过
+// security.ValidateModelName——源别名会进入 /v1/models 响应和使用日志,
+// 不能放任意字符串注入(PR #325 评审遗留)。
+func TestNormalizeAccountModelMappingValidatesModelNames(t *testing.T) {
+	valid := `{"gpt-5.4":"gpt-5.4-upstream","claude-x":"gpt-5.4"}`
+	if _, err := normalizeAccountModelMapping(valid); err != nil {
+		t.Fatalf("valid mapping rejected: %v", err)
+	}
+
+	for name, raw := range map[string]string{
+		"invalid_key_chars":   `{"bad model\nname":"gpt-5.4"}`,
+		"invalid_value_chars": `{"gpt-5.4":"bad<script>"}`,
+		"key_too_long":        `{"` + strings.Repeat("a", 300) + `":"gpt-5.4"}`,
+	} {
+		t.Run(name, func(t *testing.T) {
+			if _, err := normalizeAccountModelMapping(raw); err == nil {
+				t.Fatalf("mapping %q must be rejected", raw)
+			}
+		})
 	}
 }
