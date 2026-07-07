@@ -643,20 +643,22 @@ function formatAPIKeyLabel(log: UsageLog): string {
 }
 
 function formatAccountLabel(log: UsageLog): string {
-  const accountName = log.account_name?.trim()
-  if (accountName) return accountName
+  // 邮箱优先：身份账号一律显示邮箱，账号名仅作为无邮箱账号（如 relay API-key 账号）的兜底。
+  // 避免 AT 导入未命名时的占位名（at-account-N 等）盖过真实邮箱身份。
   const accountEmail = log.account_email?.trim()
   if (accountEmail) return formatCompactEmail(accountEmail)
+  const accountName = log.account_name?.trim()
+  if (accountName) return accountName
   return log.account_id > 0 ? `ID ${log.account_id}` : '-'
 }
 
 function formatAccountTitle(log: UsageLog): string {
-  const accountName = log.account_name?.trim()
   const accountEmail = log.account_email?.trim()
-  if (accountName && accountEmail && accountName !== accountEmail) {
-    return `${accountName} · ${accountEmail}`
+  const accountName = log.account_name?.trim()
+  if (accountEmail && accountName && accountEmail !== accountName) {
+    return `${accountEmail} · ${accountName}`
   }
-  return accountName || accountEmail || (log.account_id > 0 ? `ID ${log.account_id}` : '-')
+  return accountEmail || accountName || (log.account_id > 0 ? `ID ${log.account_id}` : '-')
 }
 
 function formatAccountDetail(log: UsageLog): string {
