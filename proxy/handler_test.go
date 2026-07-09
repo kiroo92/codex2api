@@ -2699,6 +2699,7 @@ func TestResponses_BodySignalCompactPromotedOnRelayOnlyPool(t *testing.T) {
 	body := []byte(`{
 		"model":"gpt-4.1-direct",
 		"stream":true,
+		"client_metadata":{"x-codex-window-id":"w-1","x-codex-installation-id":"i-1"},
 		"input":[
 			{"role":"user","content":"my favorite color is blue"},
 			{"type":"compaction_trigger"}
@@ -2720,6 +2721,10 @@ func TestResponses_BodySignalCompactPromotedOnRelayOnlyPool(t *testing.T) {
 	}
 	if gjson.GetBytes(seenBody, "stream").Exists() {
 		t.Fatalf("promoted upstream body should not carry stream, got %s", seenBody)
+	}
+	// compact 端点不认识 client_metadata,提升时必须剥除(issue #340)。
+	if gjson.GetBytes(seenBody, "client_metadata").Exists() {
+		t.Fatalf("promoted upstream body should not carry client_metadata, got %s", seenBody)
 	}
 	if id := gjson.GetBytes(recorder.Body.Bytes(), "id").String(); id != "resp_compaction_test" {
 		t.Fatalf("response id = %q, want resp_compaction_test; body=%s", id, recorder.Body.String())

@@ -2768,3 +2768,24 @@ func TestTranslateRequest_NormalizesWebSearchPreviewToolType(t *testing.T) {
 		t.Fatalf("expected unknown field to be stripped; body=%s", got)
 	}
 }
+
+// compact 端点不接受 client_metadata(Unknown parameter),两条 compact 准备
+// 路径都必须剥除;普通 /responses 路径不剥(引擎指纹与中转链依赖透传)。
+func TestPrepareCompactBodiesStripClientMetadata(t *testing.T) {
+	raw := []byte(`{
+		"model":"gpt-5.4",
+		"stream":true,
+		"client_metadata":{"x-codex-window-id":"w-1"},
+		"input":[{"role":"user","content":"hello"},{"type":"compaction_trigger"}]
+	}`)
+
+	codexBody, _ := PrepareCompactResponsesBodyForOwner(raw, "")
+	if gjson.GetBytes(codexBody, "client_metadata").Exists() {
+		t.Fatalf("codex compact body should strip client_metadata, got %s", codexBody)
+	}
+
+	relayBody := PrepareOpenAIResponsesCompactBody(raw)
+	if gjson.GetBytes(relayBody, "client_metadata").Exists() {
+		t.Fatalf("relay compact body should strip client_metadata, got %s", relayBody)
+	}
+}

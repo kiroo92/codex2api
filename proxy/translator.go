@@ -1863,17 +1863,22 @@ func PrepareCompactResponsesBodyForOwner(rawBody []byte, owner string) ([]byte, 
 	body, _ = sjson.DeleteBytes(body, "include")
 	body, _ = sjson.DeleteBytes(body, "store")
 	body, _ = sjson.DeleteBytes(body, "stream")
+	// 普通 /responses 请求携带的客户端指纹元数据,compact 端点不认识该参数
+	// (Unknown parameter: 'client_metadata')——body-signal 压缩提升会把普通
+	// 请求形状的 body 送进本函数,须在此剥除。
+	body, _ = sjson.DeleteBytes(body, "client_metadata")
 	return body, expandedInputRaw
 }
 
 // PrepareOpenAIResponsesCompactBody 为中转（OpenAI Responses API）账号准备
 // /responses/compact 请求体。它复用 OpenAI Responses 预处理，并移除 compact
-// 端点不接受的自动注入字段（include/store/stream）。
+// 端点不接受的自动注入字段（include/store/stream/client_metadata）。
 func PrepareOpenAIResponsesCompactBody(rawBody []byte) []byte {
 	body := PrepareOpenAIResponsesBody(rawBody)
 	body, _ = sjson.DeleteBytes(body, "include")
 	body, _ = sjson.DeleteBytes(body, "store")
 	body, _ = sjson.DeleteBytes(body, "stream")
+	body, _ = sjson.DeleteBytes(body, "client_metadata")
 	return body
 }
 
