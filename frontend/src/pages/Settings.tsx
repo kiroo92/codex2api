@@ -2269,33 +2269,59 @@ export default function Settings() {
                     )}
                   </div>
                 </SettingField>
-                <SettingField label={t('settings.codexCliVersionAutoSync')} description={t('settings.codexCliVersionAutoSyncDesc')} layout="switch">
-                  <Switch
-                    checked={settingsForm.codex_cli_version_sync_enabled}
-                    onCheckedChange={(checked) => autoSaveBooleanField('codex_cli_version_sync_enabled', checked)}
-                  />
-                </SettingField>
-                <SettingField
-                  label={t('settings.codexCliVersionSyncInterval')}
-                  description={t('settings.codexCliVersionSyncIntervalDesc')}
-                  suffix={t('settings.unit.hour')}
-                  className={cn(!settingsForm.codex_cli_version_sync_enabled && 'opacity-60')}
-                >
-                  <Input
-                    type="number"
-                    min={1}
-                    max={720}
-                    disabled={!settingsForm.codex_cli_version_sync_enabled}
-                    value={settingsForm.codex_cli_version_sync_interval_hours}
-                    onChange={(e: ChangeEvent<HTMLInputElement>) => setSettingsForm(f => ({ ...f, codex_cli_version_sync_interval_hours: parseInt(e.target.value) || 12 }))}
-                    onBlur={() => {
-                      if (!settingsForm.codex_cli_version_sync_enabled) return
-                      void autoSaveSettingsPatch({
-                        codex_cli_version_sync_interval_hours: settingsForm.codex_cli_version_sync_interval_hours,
-                      })
-                    }}
-                  />
-                </SettingField>
+                {/* CLI 版本自动同步：开关 + 间隔成对横排，行高一致 */}
+                <div className="sm:col-span-2 grid gap-0 overflow-hidden rounded-lg border border-border/60 bg-muted/15 sm:grid-cols-2 sm:divide-x sm:divide-border/60">
+                  <div className="flex min-h-[48px] items-center justify-between gap-3 px-3 py-2.5">
+                    <div className="flex min-w-0 items-center gap-1.5">
+                      <span className="text-[13px] font-medium leading-snug text-foreground sm:text-sm">
+                        {t('settings.codexCliVersionAutoSync')}
+                      </span>
+                      <SettingHelp text={t('settings.codexCliVersionAutoSyncDesc')} />
+                    </div>
+                    <Switch
+                      checked={settingsForm.codex_cli_version_sync_enabled}
+                      onCheckedChange={(checked) => autoSaveBooleanField('codex_cli_version_sync_enabled', checked)}
+                    />
+                  </div>
+                  <div
+                    className={cn(
+                      'flex min-h-[48px] items-center justify-between gap-3 border-t border-border/60 px-3 py-2.5 sm:border-t-0',
+                      !settingsForm.codex_cli_version_sync_enabled && 'opacity-60',
+                    )}
+                  >
+                    <div className="flex min-w-0 items-center gap-1.5">
+                      <span className="text-[13px] font-medium leading-snug text-foreground sm:text-sm">
+                        {t('settings.codexCliVersionSyncInterval')}
+                      </span>
+                      <SettingHelp text={t('settings.codexCliVersionSyncIntervalDesc')} />
+                    </div>
+                    <div className="relative w-[7.25rem] shrink-0">
+                      <Input
+                        type="number"
+                        min={1}
+                        max={720}
+                        className="h-9 pr-10 tabular-nums"
+                        disabled={!settingsForm.codex_cli_version_sync_enabled}
+                        value={settingsForm.codex_cli_version_sync_interval_hours}
+                        onChange={(e: ChangeEvent<HTMLInputElement>) =>
+                          setSettingsForm((f) => ({
+                            ...f,
+                            codex_cli_version_sync_interval_hours: parseInt(e.target.value) || 12,
+                          }))
+                        }
+                        onBlur={() => {
+                          if (!settingsForm.codex_cli_version_sync_enabled) return
+                          void autoSaveSettingsPatch({
+                            codex_cli_version_sync_interval_hours: settingsForm.codex_cli_version_sync_interval_hours,
+                          })
+                        }}
+                      />
+                      <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[11px] font-medium text-muted-foreground">
+                        {t('settings.unit.hour')}
+                      </span>
+                    </div>
+                  </div>
+                </div>
                 <SettingField className="sm:col-span-2 xl:col-span-3" label={t('settings.codexUserAgentRaw')} description={t('settings.codexUserAgentRawDesc')}>
                   <Input
                     className="font-mono text-xs"
