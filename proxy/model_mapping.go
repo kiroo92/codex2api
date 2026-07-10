@@ -154,6 +154,22 @@ func wildcardModelPatternMatch(pattern string, model string) bool {
 	return true
 }
 
+func applyReasoningEffortModelToBody(rawBody []byte, entry ReasoningEffortModel) ([]byte, error) {
+	updatedBody, err := sjson.SetBytes(rawBody, "model", entry.Model)
+	if err != nil {
+		return rawBody, err
+	}
+	updatedBody, err = sjson.SetBytes(updatedBody, "reasoning_effort", entry.Effort)
+	if err != nil {
+		return rawBody, err
+	}
+	updatedBody, err = sjson.SetBytes(updatedBody, "reasoning.effort", entry.Effort)
+	if err != nil {
+		return rawBody, err
+	}
+	return updatedBody, nil
+}
+
 func (h *Handler) applyConfiguredModelMappingToBody(rawBody []byte, supportedModels []string) ([]byte, string, string, bool) {
 	originalModel := strings.TrimSpace(gjson.GetBytes(rawBody, "model").String())
 	effectiveModel := originalModel
@@ -166,15 +182,7 @@ func (h *Handler) applyConfiguredModelMappingToBody(rawBody []byte, supportedMod
 	mappingApplied := false
 	if entry, ok := resolveReasoningEffortModelAlias(originalModel, h.store.GetReasoningEffortModels(), supportedModels); ok {
 		var err error
-		updatedBody, err = sjson.SetBytes(updatedBody, "model", entry.Model)
-		if err != nil {
-			return rawBody, originalModel, effectiveModel, false
-		}
-		updatedBody, err = sjson.SetBytes(updatedBody, "reasoning_effort", entry.Effort)
-		if err != nil {
-			return rawBody, originalModel, effectiveModel, false
-		}
-		updatedBody, err = sjson.SetBytes(updatedBody, "reasoning.effort", entry.Effort)
+		updatedBody, err = applyReasoningEffortModelToBody(updatedBody, entry)
 		if err != nil {
 			return rawBody, originalModel, effectiveModel, false
 		}
@@ -397,10 +405,19 @@ func (h *Handler) applyConfiguredCompactModelMappingToBody(rawBody []byte, suppo
 	if len(candidates) > 0 {
 		compactAlias := candidates[0]
 		if mappedModel, ok := resolveConfiguredModelMapping(compactAlias, h.store.GetCodexModelMapping(), supportedModels); ok && mappedModel != "" && !strings.EqualFold(mappedModel, compactAlias) {
-			updatedBody, err := sjson.SetBytes(rawBody, "model", mappedModel)
-			if err == nil {
-				return updatedBody, originalModel, mappedModel, true
+			effectiveModel := mappedModel
+			updatedBody := rawBody
+			var err error
+			if entry, ok := resolveReasoningEffortModelAlias(mappedModel, h.store.GetReasoningEffortModels(), supportedModels); ok {
+				updatedBody, err = applyReasoningEffortModelToBody(updatedBody, entry)
+				effectiveModel = entry.Model
+			} else {
+				updatedBody, err = sjson.SetBytes(updatedBody, "model", mappedModel)
 			}
+			if err != nil {
+				return rawBody, originalModel, originalModel, false
+			}
+			return updatedBody, originalModel, effectiveModel, true
 		}
 	}
 
