@@ -86,7 +86,7 @@ type CodexUserAgentConfig = {
 }
 
 const EMPTY_REASONING_EFFORT_MODEL_ENTRIES: ReasoningEffortModelEntry[] = []
-const REASONING_EFFORT_OPTIONS = ['none', 'minimal', 'low', 'medium', 'high', 'xhigh', 'ultra'].map((effort) => ({
+const REASONING_EFFORT_OPTIONS = ['none', 'minimal', 'low', 'medium', 'high', 'xhigh', 'ultra', 'max'].map((effort) => ({
   label: effort,
   value: effort,
 }))
@@ -136,8 +136,8 @@ const serializeModelMappingEntries = (entries: ModelMappingEntry[]) => {
 
 const normalizeReasoningEffortValue = (effort: string) => {
   const value = effort.trim().toLowerCase()
-  if (value === 'max') return 'xhigh'
-  return ['none', 'minimal', 'low', 'medium', 'high', 'xhigh', 'ultra'].includes(value) ? value : 'xhigh'
+  // max 仅 gpt-5.6+ 上游支持,后端会按模型钳位,前端保留原值让用户可配
+  return ['none', 'minimal', 'low', 'medium', 'high', 'xhigh', 'ultra', 'max'].includes(value) ? value : 'xhigh'
 }
 
 const normalizeBillingTierPolicyValue = (value?: string | null): 'actual' | 'requested' =>

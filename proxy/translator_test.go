@@ -2789,3 +2789,38 @@ func TestPrepareCompactBodiesStripClientMetadata(t *testing.T) {
 		t.Fatalf("relay compact body should strip client_metadata, got %s", relayBody)
 	}
 }
+
+// max 档位按模型放行:gpt-5.6 起上游接受并回显,旧模型上游 400,须钳到 xhigh。
+func TestNormalizeReasoningEffortForModel_MaxGatedByModel(t *testing.T) {
+	cases := []struct {
+		effort, model, want string
+	}{
+		{"max", "gpt-5.6-sol", "max"},
+		{"MAX", "gpt-5.6-terra", "max"},
+		{"max", "gpt-5.6", "max"},
+		{"max", "gpt-6.0", "max"},
+		{"max", "gpt-5.4", "xhigh"},
+		{"max", "gpt-5.5", "xhigh"},
+		{"max", "", "xhigh"},
+		{"max", "claude-opus", "xhigh"},
+		{"xhigh", "gpt-5.6-sol", "xhigh"},
+		{"none", "gpt-5.4", "none"},
+	}
+	for _, tc := range cases {
+		if got := normalizeReasoningEffortForModel(tc.effort, tc.model); got != tc.want {
+			t.Errorf("normalizeReasoningEffortForModel(%q, %q) = %q, want %q", tc.effort, tc.model, got, tc.want)
+		}
+	}
+}
+
+func TestPrepareResponsesBody_MaxEffortPassthroughByModel(t *testing.T) {
+	got, _ := PrepareResponsesBody([]byte(`{"model":"gpt-5.6-sol","input":"hi","reasoning":{"effort":"max"}}`))
+	if effort := gjson.GetBytes(got, "reasoning.effort").String(); effort != "max" {
+		t.Fatalf("gpt-5.6-sol effort = %q, want max; body=%s", effort, got)
+	}
+
+	got, _ = PrepareResponsesBody([]byte(`{"model":"gpt-5.4","input":"hi","reasoning":{"effort":"max"}}`))
+	if effort := gjson.GetBytes(got, "reasoning.effort").String(); effort != "xhigh" {
+		t.Fatalf("gpt-5.4 effort = %q, want xhigh; body=%s", effort, got)
+	}
+}
