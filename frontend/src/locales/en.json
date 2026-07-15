@@ -2531,7 +2531,16 @@
     "generatedModel": "Model List Name",
     "addMapping": "Add Mapping",
     "addReasoningModel": "Add Model",
-    "messagesEndpoint": "Anthropic Messages API endpoint (Claude Code)"
+    "messagesEndpoint": "Anthropic Messages API endpoint (Claude Code)",
+    "payloadRules": "Payload Rewrite Rules",
+    "payloadRulesDesc": "Conditionally rewrite upstream request bodies: append/override the instructions system prompt, override service_tier, remap reasoning effort, etc.",
+    "payloadRulesWarning": "Overriding instructions replaces the official Codex CLI system prompt and may affect its tool-calling behavior; rewriting instructions also invalidates the upstream prompt cache, so keep rule text stable. Image generation requests are not affected.",
+    "payloadRulesHint": "Rule groups: default (set when missing) / override (always set) / append (string concat) / filter (remove fields), plus *_raw raw-JSON variants. Gates: models wildcards, headers, match / not_match / exist / not_exist. Protected fields (model, stream, input, store, prompt_cache_key) cannot be rewritten.",
+    "payloadRulesJsonError": "Invalid JSON",
+    "payloadRulesObserved": "Observed client instructions samples",
+    "payloadRulesObservedDesc": "The gateway has no default system prompt of its own — instructions pass through from clients. Recent originals (pre-rewrite) are shown here as reference for writing append/override rules.",
+    "payloadRulesObservedLoad": "Load samples",
+    "payloadRulesObservedEmpty": "No samples yet — client instructions will appear here once requests flow through the gateway."
   },
   "apiRef": {
     "title": "API Reference",

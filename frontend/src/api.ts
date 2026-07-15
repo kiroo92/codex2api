@@ -47,6 +47,7 @@ import type {
   SetupHintsResponse,
   CPAExportEntry,
   SystemSettings,
+  ObservedInstructionsResponse,
   UpdateAccountSchedulerRequest,
   UpdateAPIKeyRequest,
   UpdateOAuthAccountRequest,
@@ -574,6 +575,8 @@ export const api = {
     request<MessageResponse>('/usage/logs', { method: 'DELETE' }),
   getSetupHints: () => request<SetupHintsResponse>('/setup-hints'),
   getSettings: () => request<SystemSettings>('/settings'),
+  getObservedInstructions: () =>
+    request<ObservedInstructionsResponse>('/settings/observed-instructions'),
   updateSettings: (data: Partial<SystemSettings>) =>
     request<SystemSettings>('/settings', { method: 'PUT', body: JSON.stringify(data) }),
   uploadBackground: (file: File) => {
