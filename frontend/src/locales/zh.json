@@ -2531,7 +2531,16 @@
     "generatedModel": "模型列表名称",
     "addMapping": "添加映射",
     "addReasoningModel": "添加模型",
-    "messagesEndpoint": "Anthropic Messages API 兼容端点（Claude Code）"
+    "messagesEndpoint": "Anthropic Messages API 兼容端点（Claude Code）",
+    "payloadRules": "请求体重写规则",
+    "payloadRulesDesc": "按条件改写发往上游的请求体：追加/覆盖系统提示词 instructions、覆盖 service_tier、按条件映射思考强度等。",
+    "payloadRulesWarning": "覆盖 instructions 会替换 Codex CLI 自带的官方系统提示词，可能影响其工具调用行为；改写 instructions 也会使上游 prompt cache 失效，请保持规则文本稳定。生图请求不受规则影响。",
+    "payloadRulesHint": "规则组：default（缺失才写入）/ override（无条件覆盖）/ append（字符串追加）/ filter（删除字段）及 *_raw 原始 JSON 变体；匹配门支持 models 通配、headers、match / not_match / exist / not_exist。受保护字段（model、stream、input、store、prompt_cache_key）不允许改写。",
+    "payloadRulesJsonError": "JSON 格式错误",
+    "payloadRulesObserved": "客户端透传的系统提示词样本",
+    "payloadRulesObservedDesc": "网关本身没有默认系统提示词，instructions 由客户端透传；这里展示最近观测到的原文（规则改写前），方便照着写追加/覆盖规则。",
+    "payloadRulesObservedLoad": "加载样本",
+    "payloadRulesObservedEmpty": "暂无样本——有请求经过网关后这里会出现客户端发来的 instructions 原文。"
   },
   "apiRef": {
     "title": "API 文档",
