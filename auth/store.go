@@ -129,6 +129,18 @@ type Account struct {
 	// -1 表示尚未探测过（未知）；>=0 为已知次数。
 	RateLimitResetCredits      int
 	RateLimitResetCreditsValid bool
+	// ApplicableResetCredits 是当下「可应用」的重置券张数，来自 wham/usage 的
+	// rate_limit_reset_credits.applicable_available_count。未触限时上游返回 0
+	// （券在有效期内但此刻不生效）。
+	ApplicableResetCredits      int
+	ApplicableResetCreditsValid bool
+	// Credits* 是 wham/usage 返回的 credits 积分余额快照（零额度成本）。
+	// Balance 原样保留上游字符串（单位未知，不做换算）；Valid 表示已探测过。
+	CreditsBalance             string
+	CreditsHasCredits          bool
+	CreditsUnlimited           bool
+	CreditsOverageLimitReached bool
+	CreditsValid               bool
 	// resetCreditsProbedAt 记录最近一次成功 wham 用量探针的时间。
 	// 「主动重置次数」只能通过 wham 探针刷新（普通 /responses 流量不携带该字段），
 	// 因此用它独立判断重置次数是否过期，避免活跃账号因用量快照一直被流量刷新而长期不探针。
@@ -1734,6 +1746,42 @@ func (a *Account) GetRateLimitResetCredits() (int, bool) {
 	a.mu.RLock()
 	defer a.mu.RUnlock()
 	return a.RateLimitResetCredits, a.RateLimitResetCreditsValid
+}
+
+// SetApplicableResetCredits 记录当下「可应用」的重置券张数（未触限时为 0）。
+func (a *Account) SetApplicableResetCredits(count int) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	if count < 0 {
+		count = 0
+	}
+	a.ApplicableResetCredits = count
+	a.ApplicableResetCreditsValid = true
+}
+
+// GetApplicableResetCredits 返回当下可应用的重置券张数及其是否已探测过。
+func (a *Account) GetApplicableResetCredits() (int, bool) {
+	a.mu.RLock()
+	defer a.mu.RUnlock()
+	return a.ApplicableResetCredits, a.ApplicableResetCreditsValid
+}
+
+// SetCreditBalance 记录 wham/usage 返回的 credits 积分余额快照。
+func (a *Account) SetCreditBalance(balance string, hasCredits, unlimited, overageReached bool) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	a.CreditsBalance = balance
+	a.CreditsHasCredits = hasCredits
+	a.CreditsUnlimited = unlimited
+	a.CreditsOverageLimitReached = overageReached
+	a.CreditsValid = true
+}
+
+// GetCreditBalance 返回 credits 积分余额快照及其是否已探测过。
+func (a *Account) GetCreditBalance() (balance string, hasCredits, unlimited, overageReached, ok bool) {
+	a.mu.RLock()
+	defer a.mu.RUnlock()
+	return a.CreditsBalance, a.CreditsHasCredits, a.CreditsUnlimited, a.CreditsOverageLimitReached, a.CreditsValid
 }
 
 // MarkResetCreditsProbed 记录最近一次成功 wham 用量探针的时间。
