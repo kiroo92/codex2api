@@ -6244,6 +6244,7 @@ type settingsResponse struct {
 	OverflowAutoCompactEnabled         bool    `json:"overflow_auto_compact_enabled"`
 	CodexContinueThinkingEnabled       bool    `json:"codex_continue_thinking_enabled"`
 	CodexContinueMaxRounds             int     `json:"codex_continue_max_rounds"`
+	CodexToolLoopInjectionEnabled      bool    `json:"codex_tool_loop_injection_enabled"`
 	CodexCLIVersionSyncEnabled         bool    `json:"codex_cli_version_sync_enabled"`
 	CodexCLIVersionSyncIntervalHours   int     `json:"codex_cli_version_sync_interval_hours"`
 	CodexSyncedCLIVersion              string  `json:"codex_synced_cli_version"`
@@ -6361,6 +6362,7 @@ type updateSettingsReq struct {
 	OverflowAutoCompactEnabled         *bool    `json:"overflow_auto_compact_enabled"`
 	CodexContinueThinkingEnabled       *bool    `json:"codex_continue_thinking_enabled"`
 	CodexContinueMaxRounds             *int     `json:"codex_continue_max_rounds"`
+	CodexToolLoopInjectionEnabled      *bool    `json:"codex_tool_loop_injection_enabled"`
 	CodexCLIVersionSyncEnabled         *bool    `json:"codex_cli_version_sync_enabled"`
 	CodexCLIVersionSyncIntervalHours   *int     `json:"codex_cli_version_sync_interval_hours"`
 	SchedulerMode                      *string  `json:"scheduler_mode"`
@@ -6986,6 +6988,7 @@ func (h *Handler) GetSettings(c *gin.Context) {
 		OverflowAutoCompactEnabled:         h.store.OverflowAutoCompactEnabled(),
 		CodexContinueThinkingEnabled:       h.store.CodexContinueThinkingEnabled(),
 		CodexContinueMaxRounds:             h.store.CodexContinueMaxRounds(),
+		CodexToolLoopInjectionEnabled:      runtimeCfg.CodexToolLoopInjection,
 		CodexCLIVersionSyncEnabled:         h.store.CodexCLIVersionSyncEnabled(),
 		CodexCLIVersionSyncIntervalHours:   h.store.CodexCLIVersionSyncIntervalHours(),
 		CodexSyncedCLIVersion:              proxy.CurrentRuntimeSettings().CodexSyncedCLIVersion,
@@ -7473,6 +7476,11 @@ func (h *Handler) UpdateSettings(c *gin.Context) {
 		log.Printf("设置已更新: codex_continue_max_rounds = %d", v)
 	}
 
+	if req.CodexToolLoopInjectionEnabled != nil {
+		runtimeCfg.CodexToolLoopInjection = *req.CodexToolLoopInjectionEnabled
+		log.Printf("设置已更新: codex_tool_loop_injection_enabled = %t", *req.CodexToolLoopInjectionEnabled)
+	}
+
 	if req.CodexCLIVersionSyncEnabled != nil {
 		h.store.SetCodexCLIVersionSyncEnabled(*req.CodexCLIVersionSyncEnabled)
 		runtimeCfg.CodexCLIVersionSyncEnabled = *req.CodexCLIVersionSyncEnabled
@@ -7939,6 +7947,7 @@ func (h *Handler) UpdateSettings(c *gin.Context) {
 		OverflowAutoCompactEnabled:         h.store.OverflowAutoCompactEnabled(),
 		CodexContinueThinkingEnabled:       h.store.CodexContinueThinkingEnabled(),
 		CodexContinueMaxRounds:             h.store.CodexContinueMaxRounds(),
+		CodexToolLoopInjectionEnabled:      runtimeCfg.CodexToolLoopInjection,
 		CodexCLIVersionSyncEnabled:         h.store.CodexCLIVersionSyncEnabled(),
 		CodexCLIVersionSyncIntervalHours:   h.store.CodexCLIVersionSyncIntervalHours(),
 		CodexSyncedCLIVersion:              proxy.CurrentRuntimeSettings().CodexSyncedCLIVersion,
@@ -8084,6 +8093,7 @@ func (h *Handler) UpdateSettings(c *gin.Context) {
 		OverflowAutoCompactEnabled:         h.store.OverflowAutoCompactEnabled(),
 		CodexContinueThinkingEnabled:       h.store.CodexContinueThinkingEnabled(),
 		CodexContinueMaxRounds:             h.store.CodexContinueMaxRounds(),
+		CodexToolLoopInjectionEnabled:      runtimeCfg.CodexToolLoopInjection,
 		CodexCLIVersionSyncEnabled:         h.store.CodexCLIVersionSyncEnabled(),
 		CodexCLIVersionSyncIntervalHours:   h.store.CodexCLIVersionSyncIntervalHours(),
 		CodexSyncedCLIVersion:              proxy.CurrentRuntimeSettings().CodexSyncedCLIVersion,

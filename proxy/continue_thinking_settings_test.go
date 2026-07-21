@@ -55,16 +55,17 @@ func TestApplyRuntimeSettingsFromSystemContinueThinking(t *testing.T) {
 	t.Cleanup(func() { ApplyRuntimeSettings(previous) })
 
 	next := ApplyRuntimeSettingsFromSystem(&database.SystemSettings{
-		CodexContinueThinkingEnabled: true,
-		CodexContinueMaxRounds:       12,
-		CodexWSSilentMaxRetries:      2,
+		CodexContinueThinkingEnabled:  true,
+		CodexContinueMaxRounds:        12,
+		CodexToolLoopInjectionEnabled: true,
+		CodexWSSilentMaxRetries:       2,
 	})
-	if !next.CodexContinueThinking || next.CodexContinueMaxRounds != 12 {
+	if !next.CodexContinueThinking || next.CodexContinueMaxRounds != 12 || !next.CodexToolLoopInjection {
 		t.Fatalf("SystemSettings → RuntimeSettings 映射错误: %+v", next)
 	}
 	// nil settings 回落默认值（关闭 + 8 轮）。
 	def := ApplyRuntimeSettingsFromSystem(nil)
-	if def.CodexContinueThinking || def.CodexContinueMaxRounds != 8 {
+	if def.CodexContinueThinking || def.CodexContinueMaxRounds != 8 || def.CodexToolLoopInjection {
 		t.Fatalf("nil settings 应回落默认: %+v", def)
 	}
 }

@@ -33,24 +33,24 @@ const (
 	RequestIsolationModeIsolated  = "isolated"
 	RequestIsolationModePerAPIKey = "per-api-key"
 
-	defaultClientCompatMode      = ClientCompatModePreserve
-	defaultCodexMinCLIVersion    = "0.118.0"
-	defaultStreamFlushPolicy     = StreamFlushPolicyImmediate
-	defaultStreamFlushIntervalMS = 20
-	minStreamFlushIntervalMS     = 1
-	maxStreamFlushIntervalMS     = 1000
-	defaultFirstTokenMode        = FirstTokenModeStrict
-	defaultFirstTokenTimeoutSec  = 0
-	maxFirstTokenTimeoutSec      = 600
-	defaultBillingTierPolicy     = BillingTierPolicyActual
-	defaultCodexWSHideErrors     = true
-	defaultCodexWSSilentRetry    = true
-	defaultCodexWSSilentRetries  = 2
-	defaultCodexWSSizeRouter     = true
-	maxCodexWSSilentRetries      = 10
-	defaultCodexWSBusyMaxWaitSec = 30
+	defaultClientCompatMode       = ClientCompatModePreserve
+	defaultCodexMinCLIVersion     = "0.118.0"
+	defaultStreamFlushPolicy      = StreamFlushPolicyImmediate
+	defaultStreamFlushIntervalMS  = 20
+	minStreamFlushIntervalMS      = 1
+	maxStreamFlushIntervalMS      = 1000
+	defaultFirstTokenMode         = FirstTokenModeStrict
+	defaultFirstTokenTimeoutSec   = 0
+	maxFirstTokenTimeoutSec       = 600
+	defaultBillingTierPolicy      = BillingTierPolicyActual
+	defaultCodexWSHideErrors      = true
+	defaultCodexWSSilentRetry     = true
+	defaultCodexWSSilentRetries   = 2
+	defaultCodexWSSizeRouter      = true
+	maxCodexWSSilentRetries       = 10
+	defaultCodexWSBusyMaxWaitSec  = 30
 	defaultCodexWSBusyPatienceSec = 2
-	maxCodexWSBusyWaitSec        = 300
+	maxCodexWSBusyWaitSec         = 300
 
 	defaultCodexContinueMaxRounds = 8
 	minCodexContinueMaxRounds     = 1
@@ -58,28 +58,30 @@ const (
 )
 
 type RuntimeSettings struct {
-	ClientCompatMode      string
-	CodexMinCLIVersion    string
-	CodexUserAgentConfig  string
-	StreamFlushPolicy     string
-	StreamFlushIntervalMS int
-	FirstTokenMode        string
-	FirstTokenTimeoutSec  int
-	BillingTierPolicy     string
-	CodexForceWebsocket   bool // 强制 Codex 上游走 WebSocket（默认 false）
-	CodexWSHideErrors     bool // 隐藏 Codex WS 上游原始错误（默认 true）
-	CodexWSSilentRetry    bool // 首包前 Codex WS 上游错误静默换号重试（默认 true）
-	CodexWSSilentRetries  int  // Codex WS 静默换号最大重试次数（默认 2）
-	CodexWSSizeRouter     bool // 1009 自学习体积路由：超大请求直接首发 HTTP（默认 true）
-	CodexWSBusyMaxWaitSec int  // busy session/容量等待的累计上限秒数（默认 30，issue #413）
-	CodexWSBusyOverflow   bool // busy session 溢出到同账号兄弟连接（默认 false）
-	CodexWSBusyPatienceSec int // 触发溢出前的短等待秒数（默认 2）
+	ClientCompatMode       string
+	CodexMinCLIVersion     string
+	CodexUserAgentConfig   string
+	StreamFlushPolicy      string
+	StreamFlushIntervalMS  int
+	FirstTokenMode         string
+	FirstTokenTimeoutSec   int
+	BillingTierPolicy      string
+	CodexForceWebsocket    bool // 强制 Codex 上游走 WebSocket（默认 false）
+	CodexWSHideErrors      bool // 隐藏 Codex WS 上游原始错误（默认 true）
+	CodexWSSilentRetry     bool // 首包前 Codex WS 上游错误静默换号重试（默认 true）
+	CodexWSSilentRetries   int  // Codex WS 静默换号最大重试次数（默认 2）
+	CodexWSSizeRouter      bool // 1009 自学习体积路由：超大请求直接首发 HTTP（默认 true）
+	CodexWSBusyMaxWaitSec  int  // busy session/容量等待的累计上限秒数（默认 30，issue #413）
+	CodexWSBusyOverflow    bool // busy session 溢出到同账号兄弟连接（默认 false）
+	CodexWSBusyPatienceSec int  // 触发溢出前的短等待秒数（默认 2）
 	// OverflowAutoCompact 上下文超窗时自动摘要旧轮次并重试一次（实验性，默认 false，issue #415）。
 	// 全局开关与 per-key limits.auto_compact_overflow 为「或」关系。
 	OverflowAutoCompact bool
 	// CodexContinueThinking 检测到上游按 518n-2 指纹截断思考时自动续想并折叠成单响应（默认 false）。
 	CodexContinueThinking  bool
 	CodexContinueMaxRounds int // 单次请求最大续想轮数，含首轮（默认 8，范围 1-32）
+	// CodexToolLoopInjection appends a paired no-op exec call/output after a final user message.
+	CodexToolLoopInjection bool
 	// RequestIsolationMode 控制无显式会话请求的上游身份隔离粒度（isolated|per-api-key，默认 isolated）。
 	RequestIsolationMode string
 	// CodexSyncedCLIVersion 是从 openai/codex releases 同步到的最新 Codex CLI 版本；
@@ -279,6 +281,7 @@ func ApplyRuntimeSettingsFromSystem(settings *database.SystemSettings) RuntimeSe
 		next.OverflowAutoCompact = settings.OverflowAutoCompactEnabled
 		next.CodexContinueThinking = settings.CodexContinueThinkingEnabled
 		next.CodexContinueMaxRounds = settings.CodexContinueMaxRounds
+		next.CodexToolLoopInjection = settings.CodexToolLoopInjectionEnabled
 		next.CodexSyncedCLIVersion = settings.CodexSyncedCLIVersion
 		next.CodexCLIVersionSyncEnabled = settings.CodexCLIVersionSyncEnabled
 		next.CodexCLIVersionSyncIntervalHours = settings.CodexCLIVersionSyncIntervalHours

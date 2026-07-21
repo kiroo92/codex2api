@@ -2949,6 +2949,9 @@ func TestSQLiteSystemSettingsContinueThinkingRoundtrip(t *testing.T) {
 	if got.CodexContinueThinkingEnabled {
 		t.Errorf("默认应关闭续想, got enabled")
 	}
+	if got.CodexToolLoopInjectionEnabled {
+		t.Errorf("默认应关闭工具循环注入, got enabled")
+	}
 	if got.CodexContinueMaxRounds != 8 {
 		t.Errorf("默认轮数 = %d, want 8", got.CodexContinueMaxRounds)
 	}
@@ -2956,6 +2959,7 @@ func TestSQLiteSystemSettingsContinueThinkingRoundtrip(t *testing.T) {
 	// 写入后读回。
 	got.CodexContinueThinkingEnabled = true
 	got.CodexContinueMaxRounds = 15
+	got.CodexToolLoopInjectionEnabled = true
 	if err := db.UpdateSystemSettings(ctx, got); err != nil {
 		t.Fatalf("UpdateSystemSettings: %v", err)
 	}
@@ -2963,8 +2967,8 @@ func TestSQLiteSystemSettingsContinueThinkingRoundtrip(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GetSystemSettings(2): %v", err)
 	}
-	if !after.CodexContinueThinkingEnabled || after.CodexContinueMaxRounds != 15 {
-		t.Fatalf("往返后 = {enabled=%v rounds=%d}, want {true 15}", after.CodexContinueThinkingEnabled, after.CodexContinueMaxRounds)
+	if !after.CodexContinueThinkingEnabled || after.CodexContinueMaxRounds != 15 || !after.CodexToolLoopInjectionEnabled {
+		t.Fatalf("往返后 = {continue=%v rounds=%d tool_loop=%v}, want {true 15 true}", after.CodexContinueThinkingEnabled, after.CodexContinueMaxRounds, after.CodexToolLoopInjectionEnabled)
 	}
 
 	// 越界轮数落库时归一到上界 32。

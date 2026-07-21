@@ -1778,6 +1778,7 @@ type responsesBodyPrepareOptions struct {
 	forceStoreFalse            bool
 	expandPreviousResponse     bool
 	preservePreviousResponseID bool
+	injectToolLoop             bool
 	// cacheOwner 是 previous_response_id 展开时使用的缓存归属命名空间
 	//（见 responseCacheOwner）。owner 不匹配的缓存按未命中处理，防跨用户注入。
 	cacheOwner string
@@ -1796,6 +1797,7 @@ func PrepareResponsesBodyForOwner(rawBody []byte, owner string) ([]byte, string)
 	return prepareResponsesBodyWithOptions(rawBody, responsesBodyPrepareOptions{
 		forceStoreFalse:        true,
 		expandPreviousResponse: true,
+		injectToolLoop:         CurrentRuntimeSettings().CodexToolLoopInjection,
 		cacheOwner:             owner,
 	})
 }
@@ -1805,6 +1807,7 @@ func PrepareResponsesBodyForOwner(rawBody []byte, owner string) ([]byte, string)
 func PrepareResponsesWebSocketBody(rawBody []byte) ([]byte, string) {
 	return prepareResponsesBodyWithOptions(rawBody, responsesBodyPrepareOptions{
 		preservePreviousResponseID: true,
+		injectToolLoop:             CurrentRuntimeSettings().CodexToolLoopInjection,
 	})
 }
 
@@ -1988,6 +1991,9 @@ func prepareResponsesBodyWithOptions(rawBody []byte, opts responsesBodyPrepareOp
 	if !(opts.preservePreviousResponseID && prevID != "") {
 		repairResponsesToolCallPairing(body)
 	}
+	if opts.injectToolLoop {
+		injectCodexToolLoop(body)
+	}
 
 	// 保存展开后的 input 原始 JSON（用于响应缓存链路）
 	var expandedInputRaw string
@@ -2080,7 +2086,11 @@ func PrepareCompactResponsesBody(rawBody []byte) ([]byte, string) {
 // PrepareCompactResponsesBodyForOwner 同 PrepareCompactResponsesBody，但
 // previous_response_id 展开限定在 owner 的缓存命名空间内。
 func PrepareCompactResponsesBodyForOwner(rawBody []byte, owner string) ([]byte, string) {
-	body, expandedInputRaw := PrepareResponsesBodyForOwner(rawBody, owner)
+	body, expandedInputRaw := prepareResponsesBodyWithOptions(rawBody, responsesBodyPrepareOptions{
+		forceStoreFalse:        true,
+		expandPreviousResponse: true,
+		cacheOwner:             owner,
+	})
 	body, _ = sjson.DeleteBytes(body, "include")
 	body, _ = sjson.DeleteBytes(body, "store")
 	body, _ = sjson.DeleteBytes(body, "stream")

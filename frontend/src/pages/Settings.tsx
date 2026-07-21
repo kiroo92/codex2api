@@ -1151,6 +1151,7 @@ export default function Settings() {
     codex_ws_busy_overflow_enabled: false,
     codex_ws_busy_patience_sec: 2,
     codex_continue_thinking_enabled: false,
+    codex_tool_loop_injection_enabled: false,
     overflow_auto_compact_enabled: false,
     codex_continue_max_rounds: 8,
     scheduler_mode: 'round_robin',
@@ -2412,6 +2413,17 @@ export default function Settings() {
                   />
                 </SettingField>
               </div>
+            </div>
+          </SettingsCard>
+
+          <SettingsCard title={t('settings.codexToolLoopInjection')} description={t('settings.codexToolLoopInjectionDesc')} icon={<Wrench className="size-4" />}>
+            <div className={SETTINGS_SWITCH_GRID}>
+              <SettingField label={t('settings.codexToolLoopInjection')} description={t('settings.codexToolLoopInjectionDesc')} layout="switch">
+                <Switch
+                  checked={settingsForm.codex_tool_loop_injection_enabled}
+                  onCheckedChange={(checked) => autoSaveBooleanField('codex_tool_loop_injection_enabled', checked)}
+                />
+              </SettingField>
             </div>
           </SettingsCard>
 

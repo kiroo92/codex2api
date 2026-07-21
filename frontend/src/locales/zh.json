@@ -2329,6 +2329,8 @@
     "codexContinueThinkingDesc": "检测到上游按特征指纹截断思考（“516 降智”）时，自动携带已有思考续发请求并折叠成单次响应。每次续想都是一次真实上游请求，会成倍放大额度消耗，且属于显式绕过上游截断行为，风险自负。默认关闭。",
     "codexContinueMaxRounds": "最大续想轮数",
     "codexContinueMaxRoundsDesc": "单次请求允许的上游请求总轮数（含首轮），到达上限后按当前结果返回。范围 1-32，默认 8。",
+    "codexToolLoopInjection": "工具循环续生成",
+    "codexToolLoopInjectionDesc": "当输入末项为用户消息时，在转发给 Codex 前追加一组配对的空操作 exec 调用和输出。对 Responses HTTP 与 WebSocket 生效，不影响 compact 请求，默认关闭。",
     "overflowAutoCompact": "超窗自动压缩（实验性）",
     "overflowAutoCompactDesc": "上游报上下文超窗（context_length_exceeded）时，网关自动把旧轮次摘要成一条上下文说明并重试一次，代替直接向客户端返回 400。",
     "overflowAutoCompactEnabled": "启用超窗自动压缩",

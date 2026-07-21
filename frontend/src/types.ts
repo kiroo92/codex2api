@@ -635,6 +635,7 @@ export interface SystemSettings {
   codex_continue_thinking_enabled: boolean
   overflow_auto_compact_enabled: boolean
   codex_continue_max_rounds: number
+  codex_tool_loop_injection_enabled: boolean
   scheduler_mode: string
   affinity_mode?: string
   max_retries: number
